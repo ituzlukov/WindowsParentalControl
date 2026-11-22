@@ -89,6 +89,12 @@ public static class DatabaseManager
                 details TEXT NOT NULL DEFAULT ''
             );
 
+            -- Application settings as key/value pairs (e.g. Telegram bot)
+            CREATE TABLE IF NOT EXISTS settings (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL
+            );
+
             CREATE INDEX IF NOT EXISTS idx_events_timestamp ON events (timestamp);
             CREATE INDEX IF NOT EXISTS idx_events_user_timestamp ON events (user_sid, timestamp);
             """;

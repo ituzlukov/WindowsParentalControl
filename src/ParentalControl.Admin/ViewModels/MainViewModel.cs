@@ -2,6 +2,7 @@ using System.ServiceProcess;
 using System.Windows.Media;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
+using CommunityToolkit.Mvvm.Input;
 
 namespace ParentalControl.Admin.ViewModels;
 
@@ -63,6 +64,14 @@ public partial class MainViewModel : ObservableObject
             ServiceStatusColor = Brushes.Red;
             IsServiceRunning = false;
         }
+    }
+
+    [RelayCommand]
+    private void NavigateToTelegram()
+    {
+        var telegramVm = new TelegramSettingsViewModel(NavigateBack);
+        CurrentView = telegramVm;
+        telegramVm.Load();
     }
 
     private void NavigateToUserDetail(UserRow user)

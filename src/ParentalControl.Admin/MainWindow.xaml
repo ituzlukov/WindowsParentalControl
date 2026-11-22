@@ -19,11 +19,23 @@
         <DataTemplate DataType="{x:Type vm:UserDetailViewModel}">
             <views:UserDetailView />
         </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:TelegramSettingsViewModel}">
+            <views:TelegramSettingsView />
+        </DataTemplate>
     </Window.Resources>
 
     <DockPanel>
         <StackPanel DockPanel.Dock="Top" Orientation="Horizontal"
                     HorizontalAlignment="Right" Margin="8,3,16,1">
+            <Button Command="{Binding NavigateToTelegramCommand}"
+                    Style="{StaticResource MaterialDesignFlatButton}"
+                    ToolTip="Telegram bot settings"
+                    Height="24" Padding="8,0" Margin="0,0,12,0" FontSize="11">
+                <StackPanel Orientation="Horizontal">
+                    <md:PackIcon Kind="Send" Width="14" Height="14" VerticalAlignment="Center" Margin="0,0,4,0" />
+                    <TextBlock Text="Telegram" VerticalAlignment="Center" />
+                </StackPanel>
+            </Button>
             <TextBlock Text="{Binding ServiceStatusText}"
                        Foreground="{Binding ServiceStatusColor}"
                        FontSize="11"
