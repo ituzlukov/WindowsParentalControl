@@ -27,6 +27,8 @@ UninstallDisplayName={#MyAppName}
 UninstallDisplayIcon={app}\admin\{#MyAppExeName}
 SetupIconFile=..\icon.ico
 CloseApplications=force
+; Shortcuts are intentionally per-user (the installing administrator), see [Icons]
+UsedUserAreasWarning=no
 
 [Languages]
 Name: "english"; MessagesFile: "compiler:Default.isl"
@@ -38,10 +40,16 @@ Source: "..\publish\service\*"; DestDir: "{app}\service"; Flags: ignoreversion r
 ; Admin app files
 Source: "..\publish\admin\*"; DestDir: "{app}\admin"; Flags: ignoreversion recursesubdirs createallsubdirs
 
+[InstallDelete]
+; Shortcuts used to be created for all users, so restricted users saw them too; remove them on upgrade
+Type: files; Name: "{commondesktop}\{#MyAppName}.lnk"
+Type: filesandordirs; Name: "{commonprograms}\{#MyAppName}"
+
 [Icons]
-Name: "{group}\{#MyAppName}"; Filename: "{app}\admin\{#MyAppExeName}"; \
+; Shortcuts only for the administrator running the installer, not for all users
+Name: "{userprograms}\{#MyAppName}"; Filename: "{app}\admin\{#MyAppExeName}"; \
     IconFilename: "{app}\admin\{#MyAppExeName}"; Comment: "Launch Parental Control Admin"
-Name: "{commondesktop}\{#MyAppName}"; Filename: "{app}\admin\{#MyAppExeName}"; \
+Name: "{userdesktop}\{#MyAppName}"; Filename: "{app}\admin\{#MyAppExeName}"; \
     IconFilename: "{app}\admin\{#MyAppExeName}"; Comment: "Launch Parental Control Admin"
 
 [UninstallRun]
@@ -52,7 +60,8 @@ Filename: "sc"; Parameters: "delete {#ServiceName}"; \
     RunOnceId: "DeleteService"; Flags: runhidden waituntilterminated
 
 [UninstallDelete]
-; Remove desktop shortcut
+; Remove desktop shortcuts (per-user now, all-users from older versions)
+Type: files; Name: "{userdesktop}\{#MyAppName}.lnk"
 Type: files; Name: "{commondesktop}\{#MyAppName}.lnk"
 ; Remove ProgramData folder on uninstall (logs, database)
 Type: filesandordirs; Name: "C:\ProgramData\ParentalControl"

@@ -288,7 +288,7 @@ Run `ParentalControlSetup.exe` as administrator. The installer will:
 1. Install files to `C:\Program Files\ParentalControl\`
 2. Register and start the `ParentalControl.Service` Windows Service (auto-start, runs as LocalSystem)
 3. Configure automatic service restart on failure (10s, 30s, 60s intervals)
-4. Create Start Menu and Desktop shortcuts for the Admin UI
+4. Create Start Menu and Desktop shortcuts for the Admin UI — only for the administrator running the installer, so restricted users do not see them
 
 ### Uninstalling
 
