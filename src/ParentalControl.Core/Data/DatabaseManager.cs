@@ -9,6 +9,7 @@ public static class DatabaseManager
     private const string DataDirectory = @"C:\ProgramData\ParentalControl";
     private const string DatabaseFileName = "data.db";
     public const int RetentionDays = 30;
+    public const int MaxEvents = 50_000;
 
     public static string DatabasePath => Path.Combine(DataDirectory, DatabaseFileName);
 

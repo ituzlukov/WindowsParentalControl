@@ -93,6 +93,7 @@ All enforcement actions are logged with timestamps, user SIDs, and details:
 
 ### Data Retention
 - Events and usage records older than 30 days are automatically deleted
+- The event log is also capped at the newest 50,000 events, in case frequent logins or lock/unlock flood it
 - Cleanup runs daily at midnight
 - Keeps the database size manageable over time
 

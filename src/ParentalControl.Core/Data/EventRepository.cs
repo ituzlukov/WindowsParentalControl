@@ -67,6 +67,23 @@ public static class EventRepository
         return events;
     }
 
+    /// <summary>
+    /// Keeps only the newest <paramref name="maxCount"/> events. A safety net on top of the age-based
+    /// retention, in case frequent logins, lock/unlock or denied logins flood the log.
+    /// </summary>
+    public static int TrimToMaxCount(int maxCount)
+    {
+        using var connection = DatabaseManager.CreateConnection();
+        using var cmd = connection.CreateCommand();
+        cmd.CommandText = """
+            DELETE FROM events WHERE id NOT IN (
+                SELECT id FROM events ORDER BY timestamp DESC, id DESC LIMIT @maxCount
+            )
+            """;
+        cmd.Parameters.AddWithValue("@maxCount", maxCount);
+        return cmd.ExecuteNonQuery();
+    }
+
     public static int DeleteOlderThan(DateTime cutoff)
     {
         using var connection = DatabaseManager.CreateConnection();

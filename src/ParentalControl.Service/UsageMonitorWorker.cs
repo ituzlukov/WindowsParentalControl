@@ -130,7 +130,8 @@ public sealed class UsageMonitorWorker : BackgroundService
         var eventsCutoff = DateTime.Now.AddDays(-DatabaseManager.RetentionDays);
         var usageCutoff = today.AddDays(-DatabaseManager.RetentionDays);
 
-        var eventsDeleted = EventRepository.DeleteOlderThan(eventsCutoff);
+        var eventsDeleted = EventRepository.DeleteOlderThan(eventsCutoff)
+            + EventRepository.TrimToMaxCount(DatabaseManager.MaxEvents);
         var usageDeleted = UsageRepository.DeleteOlderThan(usageCutoff);
 
         if (eventsDeleted > 0 || usageDeleted > 0)
