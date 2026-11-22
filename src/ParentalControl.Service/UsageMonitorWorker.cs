@@ -10,18 +10,23 @@ public sealed class UsageMonitorWorker : BackgroundService
 {
     private readonly SessionTracker _sessionTracker;
     private readonly TelegramNotifier _notifier;
+    private readonly TimeRequestService _timeRequests;
     private readonly Serilog.ILogger _logger;
     private static readonly TimeSpan TickInterval = TimeSpan.FromSeconds(60);
     private static readonly TimeSpan RelockDelay = TimeSpan.FromSeconds(5);
+    // How long the "ask a parent for more time?" question waits for an answer
+    private static readonly TimeSpan AskTimeout = TimeSpan.FromSeconds(30);
     private DateOnly _lastCleanupDate = DateOnly.MinValue;
     // Ticks, session-resume handling and Telegram commands may enforce the same session concurrently
     private readonly object _enforceSync = new();
     private readonly ConcurrentDictionary<int, DateTime> _relockPending = new();
 
-    public UsageMonitorWorker(SessionTracker sessionTracker, TelegramNotifier notifier, Serilog.ILogger logger)
+    public UsageMonitorWorker(
+        SessionTracker sessionTracker, TelegramNotifier notifier, TimeRequestService timeRequests, Serilog.ILogger logger)
     {
         _sessionTracker = sessionTracker;
         _notifier = notifier;
+        _timeRequests = timeRequests;
         _logger = logger;
         _sessionTracker.SessionResumed += OnSessionResumed;
     }
@@ -136,14 +141,14 @@ public sealed class UsageMonitorWorker : BackgroundService
             switch (LockoutPolicy.Decide(reason is not null, session.LockedOutAt, session.IsPaused, dateTimeNow))
             {
                 case LockoutAction.None:
-                    if (reason is null) WarnIfLogoffIsNear(sessionId, session, limit, allowed, minutesUsed, now);
+                    if (reason is null) WarnIfLogoffIsNear(sessionId, session, user, limit, allowed, minutesUsed, now);
                     break;
 
                 case LockoutAction.LiftLockout:
                     _sessionTracker.SetLockedOut(sessionId, null);
                     _logger.Information("Lockout lifted for {Username}: more time available", session.Username);
                     EventRepository.LogEvent(session.UserSid, EventType.LOCKED_OUT, "Lockout lifted: more time available");
-                    WarnIfLogoffIsNear(sessionId, session, limit, allowed, minutesUsed, now);
+                    WarnIfLogoffIsNear(sessionId, session, user, limit, allowed, minutesUsed, now);
                     break;
 
                 case LockoutAction.LockOut:
@@ -172,7 +177,8 @@ public sealed class UsageMonitorWorker : BackgroundService
                     break;
 
                 case LockoutAction.RelockAfterNotice:
-                    RelockAfterNotice(sessionId, session, reason!);
+                    RelockAfterNotice(sessionId, session, user, reason!,
+                        $"Used {BotUi.FormatMinutes(minutesUsed)} of {BotUi.FormatMinutes(allowed)}.");
                     break;
 
                 case LockoutAction.Logoff:
@@ -194,32 +200,55 @@ public sealed class UsageMonitorWorker : BackgroundService
     /// The user signed back in while still out of time: show why, then disconnect again a few seconds later
     /// (a message in a session that is disconnected right away would never be seen).
     /// </summary>
-    private void RelockAfterNotice(int sessionId, ActiveSession session, string reason)
+    private void RelockAfterNotice(int sessionId, ActiveSession session, User user, string reason, string usageLine)
     {
-        var now = DateTime.Now;
-        if (_relockPending.TryGetValue(sessionId, out var pendingSince) && now - pendingSince < RelockDelay * 2)
-            return;
-        _relockPending[sessionId] = now;
+        // One notice at a time per session; the flag is cleared when the session has been disconnected again
+        if (!_relockPending.TryAdd(sessionId, DateTime.Now)) return;
 
         _logger.Information("{Username} signed back in while locked out ({Reason}); locking again", session.Username, reason);
         EventRepository.LogEvent(session.UserSid, EventType.LOCKED_OUT, $"{reason}; signed back in, locked again");
 
         var (title, message) = LockoutPolicy.BuildRelockMessage();
-        SessionManager.SendMessage(sessionId, title, message);
+        var requestsLeft = _timeRequests.RequestsLeft(user.Sid);
 
         Task.Run(async () =>
         {
-            await Task.Delay(RelockDelay);
-            _relockPending.TryRemove(sessionId, out _);
-            if (_sessionTracker.ActiveSessions.TryGetValue(sessionId, out var current) && current.LockedOutAt is not null)
+            try
             {
-                SessionManager.DisconnectSession(sessionId);
+                if (requestsLeft > 0)
+                {
+                    // Waits for the answer (or the timeout) before locking again
+                    if (SessionManager.AskYesNo(sessionId, title, message + TimeRequestService.Prompt(requestsLeft), AskTimeout))
+                    {
+                        _timeRequests.Submit(user, $"{reason}. {usageLine}");
+                        SessionManager.SendMessage(sessionId, title,
+                            "Your request was sent to a parent. The session will be locked until they answer.");
+                    }
+                }
+                else
+                {
+                    SessionManager.SendMessage(sessionId, title, message);
+                }
+
+                await Task.Delay(RelockDelay);
+                if (_sessionTracker.ActiveSessions.TryGetValue(sessionId, out var current) && current.LockedOutAt is not null)
+                {
+                    SessionManager.DisconnectSession(sessionId);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Error(ex, "Error relocking session {SessionId}", sessionId);
+            }
+            finally
+            {
+                _relockPending.TryRemove(sessionId, out _);
             }
         });
     }
 
     private void WarnIfLogoffIsNear(
-        int sessionId, ActiveSession session, LimitConfig limit, int allowedMinutes, int minutesUsed, TimeOnly now)
+        int sessionId, ActiveSession session, User user, LimitConfig limit, int allowedMinutes, int minutesUsed, TimeOnly now)
     {
         // Nobody would see a message in a locked or disconnected session; it is shown after the session resumes.
         if (session.IsPaused) return;
@@ -233,18 +262,39 @@ public sealed class UsageMonitorWorker : BackgroundService
 
         if (warnThreshold is null) return;
 
+        _logger.Information("Logoff warning sent to {Username}: {Remaining} min remaining", session.Username, remaining);
+        EventRepository.LogEvent(session.UserSid, EventType.WARNING_SENT, $"{remaining} min remaining");
+
         var (title, message) = UsageWarnings.BuildMessage(remaining);
-        if (SessionManager.SendMessage(sessionId, title, message))
+        var requestsLeft = _timeRequests.RequestsLeft(user.Sid);
+        if (requestsLeft == 0)
         {
-            _logger.Information("Logoff warning sent to {Username}: {Remaining} min remaining",
-                session.Username, remaining);
-            EventRepository.LogEvent(session.UserSid, EventType.WARNING_SENT, $"{remaining} min remaining");
+            if (!SessionManager.SendMessage(sessionId, title, message))
+            {
+                _logger.Warning("Failed to send logoff warning to {Username} (session {SessionId}), Win32 error {Error}",
+                    session.Username, sessionId, Marshal.GetLastPInvokeError());
+            }
+            return;
         }
-        else
+
+        // The question waits for an answer, so it is asked off the enforcement thread
+        var usageLine = $"Used {BotUi.FormatMinutes(minutesUsed)} of {BotUi.FormatMinutes(allowedMinutes)}, {remaining} min left.";
+        Task.Run(() =>
         {
-            _logger.Warning("Failed to send logoff warning to {Username} (session {SessionId}), Win32 error {Error}",
-                session.Username, sessionId, Marshal.GetLastPInvokeError());
-        }
+            try
+            {
+                if (SessionManager.AskYesNo(sessionId, title, message + TimeRequestService.Prompt(requestsLeft), AskTimeout))
+                {
+                    _timeRequests.Submit(user, usageLine);
+                    SessionManager.SendMessage(sessionId, title,
+                        "Your request was sent to a parent. You will get a message with the answer.");
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.Error(ex, "Error asking {Username} about a time request", session.Username);
+            }
+        });
     }
 
     private void RunCleanupIfNeeded()

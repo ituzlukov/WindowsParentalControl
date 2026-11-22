@@ -42,6 +42,9 @@ internal static class NativeMethods
         [MarshalAs(UnmanagedType.Bool)] bool bWait);
 
     internal const int MB_OK = 0x00000000;
+    internal const int MB_YESNO = 0x00000004;
+    internal const int MB_ICONQUESTION = 0x00000020;
+    internal const int IDYES = 6;
     internal const int MB_ICONWARNING = 0x00000030;
     internal const int MB_SETFOREGROUND = 0x00010000;
     internal const int MB_TOPMOST = 0x00040000;

@@ -72,6 +72,7 @@ Check the status and grant time from your phone, also when you are away from hom
 - `/status` shows, per restricted user: time used and left, today's allowed hours, the session state (active, screen locked, locked out), with buttons **+15 / +30 / +60 min** and **Lock now** / **Unlock**
 - When a session is locked out because time is up, you get a message with the same buttons; adding time lets the child continue where they left off
 - **Lock now** locks the user out for the rest of the day (logged off after 15 minutes like any lockout); granting bonus time or **Unlock** lifts it
+- The child can ask for more time: the 10- and 1-minute warnings, and the message shown when signing back in while out of time, ask "Ask a parent for more time?" (Yes/No). On Yes, the parents get the request with **+15 / +30 / +60 / No**; the first answer wins and the child gets a message. At most 3 requests a day by default (Admin UI → Telegram, 0 turns requests off), one at a time
 - The service only makes outgoing HTTPS requests to Telegram (long polling); nothing listens on the computer. The bot token is stored in the database, which restricted users cannot read
 - Note: user names and usage are sent through Telegram's servers
 
@@ -93,6 +94,8 @@ All enforcement actions are logged with timestamps, user SIDs, and details:
 | `WARNING_SENT` | User was warned about an upcoming logoff |
 | `BONUS_GRANTED` | Bonus minutes were granted or cleared for today |
 | `LOCKED_OUT` | Time was up and the session was locked out, the user signed back in and was locked again, or the lockout was lifted |
+| `TIME_REQUESTED` | The user asked the parents for more time (Telegram) |
+| `TIME_REQUEST_DECLINED` | A parent declined a request for more time |
 
 ### Clock Tamper Detection
 - Detects when the system clock is set backwards (e.g., a user trying to gain extra screen time)

@@ -20,13 +20,16 @@ public sealed partial class TelegramBotWorker : BackgroundService
 
     private readonly SessionTracker _sessionTracker;
     private readonly UsageMonitorWorker _monitor;
+    private readonly TimeRequestService _timeRequests;
     private readonly Serilog.ILogger _logger;
     private int _failedPairingAttempts;
 
-    public TelegramBotWorker(SessionTracker sessionTracker, UsageMonitorWorker monitor, Serilog.ILogger logger)
+    public TelegramBotWorker(
+        SessionTracker sessionTracker, UsageMonitorWorker monitor, TimeRequestService timeRequests, Serilog.ILogger logger)
     {
         _sessionTracker = sessionTracker;
         _monitor = monitor;
+        _timeRequests = timeRequests;
         _logger = logger;
     }
 
@@ -156,6 +159,12 @@ public sealed partial class TelegramBotWorker : BackgroundService
         }
 
         var action = BotUi.Parse(callback["data"]?.GetValue<string>());
+        if (action is AnswerRequestAction answerRequest)
+        {
+            await AnswerTimeRequestAsync(api, callbackId, chatId.Value, messageId.Value, answerRequest, parent, ct);
+            return;
+        }
+
         var user = action switch
         {
             GrantBonusAction a => UserRepository.GetById(a.UserId),
@@ -204,6 +213,51 @@ public sealed partial class TelegramBotWorker : BackgroundService
         _logger.Information("Telegram: {Answer} (by {Parent})", answer, parent);
         await api.AnswerCallbackQueryAsync(callbackId, answer, ct);
         await EditToStatusAsync(api, chatId.Value, messageId.Value, user, ct);
+    }
+
+    /// <summary>
+    /// A parent answered a child's request: grant the bonus or decline, tell the child, and replace the
+    /// buttons with the answer. The first answer wins; other parents' buttons then report it was answered.
+    /// </summary>
+    private async Task AnswerTimeRequestAsync(
+        TelegramApi api, string callbackId, long chatId, long messageId, AnswerRequestAction action, string parent,
+        CancellationToken ct)
+    {
+        var request = _timeRequests.TryTake(action.RequestId);
+        if (request is null)
+        {
+            await api.AnswerCallbackQueryAsync(callbackId, "This request was already answered or has expired", ct);
+            return;
+        }
+
+        string result;
+        if (action.Minutes > 0)
+        {
+            var totalBonus = UsageRepository.AddBonusMinutes(request.UserId, DateOnly.FromDateTime(DateTime.Now), action.Minutes);
+            EventRepository.LogEvent(request.UserSid, EventType.BONUS_GRANTED,
+                $"+{action.Minutes} min via Telegram by {parent}, on request (bonus today: {totalBonus} min)");
+            _monitor.EnforceUser(request.UserSid);
+            TellUser(request.UserSid, $"A parent added {action.Minutes} minutes.");
+            result = $"Granted +{action.Minutes} min by {parent}";
+        }
+        else
+        {
+            EventRepository.LogEvent(request.UserSid, EventType.TIME_REQUEST_DECLINED, $"Declined via Telegram by {parent}");
+            TellUser(request.UserSid, "A parent said no to more time.");
+            result = $"Declined by {parent}";
+        }
+
+        _logger.Information("Telegram: time request {RequestId} from {Username}: {Result}",
+            request.Id, request.Username, result);
+        await api.AnswerCallbackQueryAsync(callbackId, result, ct);
+        try
+        {
+            // No keyboard: the request cannot be answered twice
+            await api.EditMessageTextAsync(chatId, messageId, $"{request.Text}\n\n{result}", ct: ct);
+        }
+        catch (TelegramApiException)
+        {
+        }
     }
 
     private async Task SendStatusAsync(TelegramApi api, long chatId, CancellationToken ct)
