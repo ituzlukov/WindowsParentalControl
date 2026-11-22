@@ -90,7 +90,7 @@
                                    Text="TODAY'S USAGE" FontSize="10" Opacity="0.5"
                                    FontWeight="SemiBold" />
                         <StackPanel Grid.Row="1" Grid.Column="8" Orientation="Horizontal" Margin="0,2,0,0">
-                            <TextBox Text="{Binding EditableUsageMinutes, UpdateSourceTrigger=PropertyChanged}"
+                            <TextBox Text="{Binding EditableUsageMinutes, UpdateSourceTrigger=PropertyChanged, TargetNullValue=''}"
                                      Width="60" VerticalAlignment="Center"
                                      md:HintAssist.Hint="min"
                                      Style="{StaticResource MaterialDesignOutlinedTextBox}"

@@ -27,8 +27,9 @@ public partial class UserDetailViewModel : ObservableObject
     [ObservableProperty]
     private string _scheduleEnd = DefaultScheduleEnd;
 
+    /// <summary>Null while the field is empty; an empty field is saved as 0.</summary>
     [ObservableProperty]
-    private int _editableUsageMinutes;
+    private int? _editableUsageMinutes;
 
     [ObservableProperty]
     private ObservableCollection<EventRecord> _eventRecords = [];
@@ -87,7 +88,8 @@ public partial class UserDetailViewModel : ObservableObject
     [RelayCommand]
     private void SetUsage()
     {
-        if (EditableUsageMinutes < 0)
+        var minutes = EditableUsageMinutes ?? 0;
+        if (minutes < 0)
         {
             MessageBox.Show("Usage minutes cannot be negative.", "Validation Error",
                 MessageBoxButton.OK, MessageBoxImage.Warning);
@@ -95,7 +97,7 @@ public partial class UserDetailViewModel : ObservableObject
         }
 
         var today = DateOnly.FromDateTime(DateTime.Now);
-        UsageRepository.SetUsage(User.Id, today, EditableUsageMinutes);
+        UsageRepository.SetUsage(User.Id, today, minutes);
         User.RefreshUsage();
         EditableUsageMinutes = User.TodayMinutesUsed;
     }
