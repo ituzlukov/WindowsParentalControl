@@ -46,6 +46,6 @@ public static class UsageWarnings
         var unit = remainingMinutes == 1 ? "minute" : "minutes";
         return ("Parental Control",
             $"Your computer time ends in {remainingMinutes} {unit}.\n\n" +
-            "Save your work: you will be logged off automatically.");
+            "Save your work: the session will be locked.");
     }
 }

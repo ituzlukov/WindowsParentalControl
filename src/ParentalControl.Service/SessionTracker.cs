@@ -15,6 +15,9 @@ namespace ParentalControl.Service;
 /// <param name="WarnedThreshold">
 /// Smallest logoff warning threshold (minutes) already shown in this session; see <see cref="UsageWarnings"/>.
 /// </param>
+/// <param name="LockedOutAt">
+/// When the session was locked out because time was up; null if it is not locked out. See <see cref="LockoutPolicy"/>.
+/// </param>
 public sealed record ActiveSession(
     int SessionId,
     string UserSid,
@@ -24,7 +27,8 @@ public sealed record ActiveSession(
     bool IsLocked = false,
     bool IsDisconnected = false,
     DateTime? PausedAt = null,
-    int? WarnedThreshold = null)
+    int? WarnedThreshold = null,
+    DateTime? LockedOutAt = null)
 {
     public bool IsPaused => PausedAt is not null;
 }
@@ -46,6 +50,12 @@ public sealed class SessionTracker
     public bool IsAwake => _isAwake;
 
     public IReadOnlyDictionary<int, ActiveSession> ActiveSessions => _activeSessions;
+
+    /// <summary>
+    /// Raised (on the session change thread) when a session is unlocked and connected again,
+    /// so that limits can be enforced right away instead of on the next tick.
+    /// </summary>
+    public event Action<int>? SessionResumed;
 
     public void Initialize()
     {
@@ -172,6 +182,7 @@ public sealed class SessionTracker
     /// </summary>
     private void UpdatePauseState(int sessionId, bool? isLocked, bool? isDisconnected, string reason)
     {
+        var resumed = false;
         lock (_sync)
         {
             if (!_activeSessions.TryGetValue(sessionId, out var session)) return;
@@ -201,9 +212,23 @@ public sealed class SessionTracker
                     $"{reason} after ~{pausedMinutes} min");
                 _logger.Information("Usage counting resumed for {Username}: {Reason} after ~{Minutes} min",
                     session.Username, reason, pausedMinutes);
+                resumed = true;
             }
 
             _activeSessions[sessionId] = updated;
+        }
+
+        if (resumed) SessionResumed?.Invoke(sessionId);
+    }
+
+    public void SetLockedOut(int sessionId, DateTime? lockedOutAt)
+    {
+        lock (_sync)
+        {
+            if (_activeSessions.TryGetValue(sessionId, out var session))
+            {
+                _activeSessions[sessionId] = session with { LockedOutAt = lockedOutAt };
+            }
         }
     }
 

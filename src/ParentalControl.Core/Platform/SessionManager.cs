@@ -14,6 +14,18 @@ public static class SessionManager
     }
 
     /// <summary>
+    /// Disconnects the session without logging it off: programs keep running, the user sees the
+    /// sign-in screen and returns to the same desktop after signing in again.
+    /// </summary>
+    public static bool DisconnectSession(int sessionId)
+    {
+        return NativeMethods.WTSDisconnectSession(
+            NativeMethods.WTS_CURRENT_SERVER_HANDLE,
+            sessionId,
+            false);
+    }
+
+    /// <summary>
     /// Shows a message box in the user's session. Does not wait for the user to close it,
     /// so the caller is never blocked.
     /// </summary>

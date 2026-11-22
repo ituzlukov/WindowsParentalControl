@@ -13,5 +13,6 @@ public enum EventType
     SESSION_PAUSED,
     SESSION_RESUMED,
     WARNING_SENT,
-    BONUS_GRANTED
+    BONUS_GRANTED,
+    LOCKED_OUT
 }

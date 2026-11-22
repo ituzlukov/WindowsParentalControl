@@ -38,7 +38,7 @@ Parental Control is a **Windows desktop application** that lets administrators e
 ### Schedule Windows
 - Define allowed hours for each user (e.g., 08:00 to 22:00)
 - Times can be typed without a colon: `2200`, `22`, `730` or `22.00` are understood as `22:00`, `22:00`, `07:30` and `22:00`
-- Users are forcefully logged off if they are still logged in when their schedule window closes
+- Users are locked out when their schedule window closes (see Lockout Instead of Logoff)
 - Login attempts outside the schedule window are denied
 
 ### Per-Day Overrides
@@ -48,15 +48,22 @@ Parental Control is a **Windows desktop application** that lets administrators e
 
 ### Automatic Enforcement
 - The background service checks all active sessions every 60 seconds
-- If a user exceeds their daily limit, they are immediately logged off
-- If a user is logged in outside their allowed schedule, they are immediately logged off
+- If a user exceeds their daily limit (plus any bonus for today), their session is locked out
+- If a user is logged in outside their allowed schedule, their session is locked out
 - Login attempts are blocked if the user has already exhausted their daily limit or is outside their schedule
 
 ### Logoff Warnings
-- A restricted user gets a message box 10 minutes and 1 minute before being logged off, whichever comes first: the daily limit or the end of the schedule window
+- A restricted user gets a message box 10 minutes and 1 minute before the session is locked, whichever comes first: the daily limit or the end of the schedule window
 - Each warning is shown once per session; if extra time is granted, the warnings are shown again when the new deadline approaches
 - No warnings in a locked or disconnected session; a pending warning is shown after the session resumes
 - The message never blocks the service
+
+### Lockout Instead of Logoff
+- When time is up, the session is disconnected instead of logged off: the user sees the sign-in screen, while open documents and games stay as they are
+- If a parent grants more time (bonus, schedule change), the user signs back in and continues where they left off
+- Signing back in while still out of time shows a message and locks the session again a few seconds later
+- If no more time is granted within 15 minutes, the session is logged off, so nothing keeps running in it (voice chat, music, downloads)
+- A new login while out of time is still denied right away (nothing to lose yet), and clock tampering still logs the user off
 
 ### Event & Audit Logging
 All enforcement actions are logged with timestamps, user SIDs, and details:
@@ -75,6 +82,7 @@ All enforcement actions are logged with timestamps, user SIDs, and details:
 | `SESSION_RESUMED` | Usage counting resumed: session unlocked or reconnected |
 | `WARNING_SENT` | User was warned about an upcoming logoff |
 | `BONUS_GRANTED` | Bonus minutes were granted or cleared for today |
+| `LOCKED_OUT` | Time was up and the session was locked out, the user signed back in and was locked again, or the lockout was lifted |
 
 ### Clock Tamper Detection
 - Detects when the system clock is set backwards (e.g., a user trying to gain extra screen time)
@@ -91,7 +99,7 @@ All enforcement actions are logged with timestamps, user SIDs, and details:
 ### Locked and Disconnected Sessions
 - Usage is not counted while a session is locked (Win+L, lock screen) or disconnected (switch user, RDP disconnect)
 - Counting resumes when the session is unlocked or reconnected; partial minutes before the lock are kept
-- The schedule window still applies: a locked or disconnected session is logged off when the window closes
+- The schedule window still applies: a locked or disconnected session is locked out and later logged off when the window closes
 - Sessions that are already locked or disconnected when the service starts are detected as paused
 
 ### Data Retention
@@ -209,7 +217,7 @@ ParentalControl/
 │       └── UsageMonitorWorker.cs        # 60-second enforcement loop
 │
 ├── tests/
-│   └── ParentalControl.Tests/           # xUnit tests (effective limits, logoff warnings, time input)
+│   └── ParentalControl.Tests/           # xUnit tests (effective limits, logoff warnings, lockout, time input)
 │
 ├── installer/
 │   ├── ParentalControl.iss              # Inno Setup installer script
@@ -313,7 +321,7 @@ Navigate to `C:\Program Files\ParentalControl\` and run `uninst000.exe`. This wi
 
 1. **Startup** — The service initializes the SQLite database, recovers any existing active sessions, and begins the 60-second monitoring loop.
 2. **Session Change** — When a user logs on, the service checks their restrictions. If the user is outside their schedule or has exhausted their daily limit, login is denied (forced logoff). Otherwise, the session is tracked.
-3. **Monitoring Loop** — Every 60 seconds, the service iterates over all active sessions. For each restricted user, it increments their daily usage and checks limits. Violations trigger a forced logoff.
+3. **Monitoring Loop** — Every 60 seconds, the service iterates over all active sessions. For each restricted user, it increments their daily usage and checks limits. Violations lock the session out; it is logged off if no more time is granted within 15 minutes.
 4. **Logoff** — When a user logs off (or is forced off), accumulated session time is flushed to the database.
 5. **Sleep/Wake** — On system sleep, all session times are flushed and tracking pauses. On wake, tracking resumes without counting sleep time.
 
