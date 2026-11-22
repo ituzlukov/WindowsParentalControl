@@ -102,6 +102,9 @@ All enforcement actions are logged with timestamps, user SIDs, and details:
 - The `C:\ProgramData\ParentalControl\` directory is locked via ACLs to SYSTEM and Administrators only
 - Restricted users cannot directly access or modify the database
 
+### Light and Dark Theme
+- The Admin UI follows the Windows app mode (Settings → Personalization → Colors): light or dark theme and title bar, switching live when the setting changes
+
 ### Service Status Monitoring
 - The admin UI polls the Windows Service status every 5 seconds
 - Displays a green indicator when the service is running, red when it's down
@@ -143,7 +146,7 @@ Both the Admin UI and the Service share the same SQLite database. When you chang
 | Component | Technology |
 |---|---|
 | UI Framework | WPF (Windows Presentation Foundation) |
-| UI Theme | Material Design Themes for WPF (Indigo/Amber) |
+| UI Theme | Material Design Themes for WPF (Indigo/Amber, light or dark following Windows) |
 | Architecture Pattern | MVVM (CommunityToolkit.Mvvm) |
 | Backend Service | .NET Worker Service (Windows Service) |
 | Database | SQLite (Microsoft.Data.Sqlite) |
