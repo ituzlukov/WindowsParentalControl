@@ -22,6 +22,26 @@ internal static class NativeMethods
     [DllImport("wtsapi32.dll")]
     internal static extern void WTSFreeMemory(IntPtr pMemory);
 
+    /// <remarks>Title and message lengths are in bytes, not characters.</remarks>
+    [DllImport("wtsapi32.dll", SetLastError = true, CharSet = CharSet.Unicode)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    internal static extern bool WTSSendMessageW(
+        IntPtr hServer,
+        int sessionId,
+        string pTitle,
+        int titleLength,
+        string pMessage,
+        int messageLength,
+        int style,
+        int timeout,
+        out int pResponse,
+        [MarshalAs(UnmanagedType.Bool)] bool bWait);
+
+    internal const int MB_OK = 0x00000000;
+    internal const int MB_ICONWARNING = 0x00000030;
+    internal const int MB_SETFOREGROUND = 0x00010000;
+    internal const int MB_TOPMOST = 0x00040000;
+
     [DllImport("wtsapi32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     internal static extern bool WTSEnumerateSessionsW(

@@ -13,6 +13,25 @@ public static class SessionManager
             false);
     }
 
+    /// <summary>
+    /// Shows a message box in the user's session. Does not wait for the user to close it,
+    /// so the caller is never blocked.
+    /// </summary>
+    public static bool SendMessage(int sessionId, string title, string message)
+    {
+        return NativeMethods.WTSSendMessageW(
+            NativeMethods.WTS_CURRENT_SERVER_HANDLE,
+            sessionId,
+            title,
+            title.Length * sizeof(char),
+            message,
+            message.Length * sizeof(char),
+            NativeMethods.MB_OK | NativeMethods.MB_ICONWARNING | NativeMethods.MB_SETFOREGROUND | NativeMethods.MB_TOPMOST,
+            0,
+            out _,
+            false);
+    }
+
     public static string? GetSessionUsername(int sessionId)
     {
         if (!NativeMethods.WTSQuerySessionInformationW(

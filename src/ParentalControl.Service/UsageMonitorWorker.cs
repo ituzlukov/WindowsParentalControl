@@ -1,3 +1,4 @@
+using System.Runtime.InteropServices;
 using ParentalControl.Core.Data;
 using ParentalControl.Core.Models;
 using ParentalControl.Core.Platform;
@@ -84,7 +85,38 @@ public sealed class UsageMonitorWorker : BackgroundService
                 SessionManager.ForceLogoff(sessionId);
                 EventRepository.LogEvent(session.UserSid, EventType.FORCED_LOGOUT, "Outside allowed schedule");
                 _sessionTracker.RemoveSession(sessionId);
+                continue;
             }
+
+            WarnIfLogoffIsNear(sessionId, session, limit, usage?.MinutesUsed ?? 0, now);
+        }
+    }
+
+    private void WarnIfLogoffIsNear(int sessionId, ActiveSession session, LimitConfig limit, int minutesUsed, TimeOnly now)
+    {
+        // Nobody would see a message in a locked or disconnected session; it is shown after the session resumes.
+        if (session.IsPaused) return;
+
+        var remaining = UsageWarnings.GetRemainingMinutes(limit, minutesUsed, now);
+        var (warnThreshold, newState) = UsageWarnings.Evaluate(remaining, session.WarnedThreshold);
+        if (newState != session.WarnedThreshold)
+        {
+            _sessionTracker.SetWarnedThreshold(sessionId, newState);
+        }
+
+        if (warnThreshold is null) return;
+
+        var (title, message) = UsageWarnings.BuildMessage(remaining);
+        if (SessionManager.SendMessage(sessionId, title, message))
+        {
+            _logger.Information("Logoff warning sent to {Username}: {Remaining} min remaining",
+                session.Username, remaining);
+            EventRepository.LogEvent(session.UserSid, EventType.WARNING_SENT, $"{remaining} min remaining");
+        }
+        else
+        {
+            _logger.Warning("Failed to send logoff warning to {Username} (session {SessionId}), Win32 error {Error}",
+                session.Username, sessionId, Marshal.GetLastPInvokeError());
         }
     }
 

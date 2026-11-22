@@ -50,6 +50,12 @@ Parental Control is a **Windows desktop application** that lets administrators e
 - If a user is logged in outside their allowed schedule, they are immediately logged off
 - Login attempts are blocked if the user has already exhausted their daily limit or is outside their schedule
 
+### Logoff Warnings
+- A restricted user gets a message box 10 minutes and 1 minute before being logged off, whichever comes first: the daily limit or the end of the schedule window
+- Each warning is shown once per session; if extra time is granted, the warnings are shown again when the new deadline approaches
+- No warnings in a locked or disconnected session; a pending warning is shown after the session resumes
+- The message never blocks the service
+
 ### Event & Audit Logging
 All enforcement actions are logged with timestamps, user SIDs, and details:
 
@@ -65,6 +71,7 @@ All enforcement actions are logged with timestamps, user SIDs, and details:
 | `CLOCK_TAMPER` | System clock manipulation was detected |
 | `SESSION_PAUSED` | Usage counting paused: session locked or disconnected |
 | `SESSION_RESUMED` | Usage counting resumed: session unlocked or reconnected |
+| `WARNING_SENT` | User was warned about an upcoming logoff |
 
 ### Clock Tamper Detection
 - Detects when the system clock is set backwards (e.g., a user trying to gain extra screen time)

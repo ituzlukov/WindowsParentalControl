@@ -12,6 +12,9 @@ namespace ParentalControl.Service;
 /// <param name="PausedAt">
 /// When usage counting was paused because the session became locked or disconnected; null while counting.
 /// </param>
+/// <param name="WarnedThreshold">
+/// Smallest logoff warning threshold (minutes) already shown in this session; see <see cref="UsageWarnings"/>.
+/// </param>
 public sealed record ActiveSession(
     int SessionId,
     string UserSid,
@@ -20,7 +23,8 @@ public sealed record ActiveSession(
     bool IsAdmin,
     bool IsLocked = false,
     bool IsDisconnected = false,
-    DateTime? PausedAt = null)
+    DateTime? PausedAt = null,
+    int? WarnedThreshold = null)
 {
     public bool IsPaused => PausedAt is not null;
 }
@@ -242,6 +246,17 @@ public sealed class SessionTracker
                     PausedAt = session.IsPaused ? now : null
                 };
                 EventRepository.LogEvent(session.UserSid, EventType.WAKE, detail);
+            }
+        }
+    }
+
+    public void SetWarnedThreshold(int sessionId, int? warnedThreshold)
+    {
+        lock (_sync)
+        {
+            if (_activeSessions.TryGetValue(sessionId, out var session))
+            {
+                _activeSessions[sessionId] = session with { WarnedThreshold = warnedThreshold };
             }
         }
     }
