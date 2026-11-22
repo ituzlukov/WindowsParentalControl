@@ -58,6 +58,8 @@ All enforcement actions are logged with timestamps, user SIDs, and details:
 | `FORCED_LOGOUT` | User was forcefully logged off |
 | `LOGIN_DENIED` | Login attempt was rejected |
 | `CLOCK_TAMPER` | System clock manipulation was detected |
+| `SESSION_PAUSED` | Usage counting paused: session locked or disconnected |
+| `SESSION_RESUMED` | Usage counting resumed: session unlocked or reconnected |
 
 ### Clock Tamper Detection
 - Detects when the system clock is set backwards (e.g., a user trying to gain extra screen time)
@@ -70,6 +72,12 @@ All enforcement actions are logged with timestamps, user SIDs, and details:
 - Resumes accurately on wake — sleep time is not counted against the user
 - All active session times are flushed to the database before sleep
 - Retroactively detects undetected sleep/hibernate events by identifying gaps in session activity greater than 2 minutes
+
+### Locked and Disconnected Sessions
+- Usage is not counted while a session is locked (Win+L, lock screen) or disconnected (switch user, RDP disconnect)
+- Counting resumes when the session is unlocked or reconnected; partial minutes before the lock are kept
+- The schedule window still applies: a locked or disconnected session is logged off when the window closes
+- Sessions that are already locked or disconnected when the service starts are detected as paused
 
 ### Data Retention
 - Events and usage records older than 30 days are automatically deleted

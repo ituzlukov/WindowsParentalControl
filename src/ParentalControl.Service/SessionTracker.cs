@@ -7,11 +7,30 @@ namespace ParentalControl.Service;
 /// <param name="IsAdmin">
 /// Member of the local Administrators group: never restricted, even if marked as restricted in the database.
 /// </param>
-public sealed record ActiveSession(int SessionId, string UserSid, string Username, DateTime LastTick, bool IsAdmin);
+/// <param name="IsLocked">The session is locked (lock screen).</param>
+/// <param name="IsDisconnected">The session is disconnected (user switched away, RDP disconnected).</param>
+/// <param name="PausedAt">
+/// When usage counting was paused because the session became locked or disconnected; null while counting.
+/// </param>
+public sealed record ActiveSession(
+    int SessionId,
+    string UserSid,
+    string Username,
+    DateTime LastTick,
+    bool IsAdmin,
+    bool IsLocked = false,
+    bool IsDisconnected = false,
+    DateTime? PausedAt = null)
+{
+    public bool IsPaused => PausedAt is not null;
+}
 
 public sealed class SessionTracker
 {
     private readonly ConcurrentDictionary<int, ActiveSession> _activeSessions = new();
+    // Session change events (service control thread) and ticks (worker thread) both rewrite session records;
+    // updates are serialized so that, e.g., a tick does not overwrite a pause that happened mid-tick.
+    private readonly object _sync = new();
     private volatile bool _isAwake = true;
     private readonly Serilog.ILogger _logger;
 
@@ -27,7 +46,8 @@ public sealed class SessionTracker
     public void Initialize()
     {
         var sessions = SessionManager.GetActiveSessions();
-        foreach (var (sessionId, username, sid) in sessions)
+        var now = DateTime.Now;
+        foreach (var (sessionId, username, sid, isDisconnected) in sessions)
         {
             if (sid is null) continue;
 
@@ -37,10 +57,14 @@ public sealed class SessionTracker
                 user = UserRepository.Upsert(sid, username, false);
             }
 
+            var isLocked = SessionManager.IsSessionLocked(sessionId);
+            var paused = isLocked || isDisconnected;
             _activeSessions.TryAdd(sessionId,
-                new ActiveSession(sessionId, sid, username, DateTime.Now, LocalAccounts.IsAdministrator(sid)));
-            _logger.Information("Recovered existing session: {Username} (SID: {Sid}) on session {SessionId}",
-                username, sid, sessionId);
+                new ActiveSession(sessionId, sid, username, now, LocalAccounts.IsAdministrator(sid),
+                    isLocked, isDisconnected, paused ? now : null));
+            _logger.Information(
+                "Recovered existing session: {Username} (SID: {Sid}) on session {SessionId}, locked: {IsLocked}, disconnected: {IsDisconnected}",
+                username, sid, sessionId, isLocked, isDisconnected);
         }
     }
 
@@ -114,11 +138,68 @@ public sealed class SessionTracker
 
     public void OnUserLogoff(int sessionId)
     {
-        if (_activeSessions.TryRemove(sessionId, out var session))
+        lock (_sync)
         {
-            FlushSessionTime(session);
-            EventRepository.LogEvent(session.UserSid, EventType.LOGOUT);
-            _logger.Information("User logged off: {Username}", session.Username);
+            if (_activeSessions.TryRemove(sessionId, out var session))
+            {
+                FlushSessionTime(session);
+                EventRepository.LogEvent(session.UserSid, EventType.LOGOUT);
+                _logger.Information("User logged off: {Username}", session.Username);
+            }
+        }
+    }
+
+    public void OnSessionLock(int sessionId) =>
+        UpdatePauseState(sessionId, isLocked: true, isDisconnected: null, "Session locked");
+
+    public void OnSessionUnlock(int sessionId) =>
+        UpdatePauseState(sessionId, isLocked: false, isDisconnected: null, "Session unlocked");
+
+    public void OnSessionDisconnect(int sessionId) =>
+        UpdatePauseState(sessionId, isLocked: null, isDisconnected: true, "Session disconnected");
+
+    public void OnSessionConnect(int sessionId) =>
+        UpdatePauseState(sessionId, isLocked: null, isDisconnected: false, "Session reconnected");
+
+    /// <summary>
+    /// Usage is not counted while a session is locked or disconnected. On pause the session remembers
+    /// when it was paused; on resume <see cref="ActiveSession.LastTick"/> is shifted forward by the pause
+    /// duration, so the partial minute counted before the pause is kept and the pause itself is skipped.
+    /// </summary>
+    private void UpdatePauseState(int sessionId, bool? isLocked, bool? isDisconnected, string reason)
+    {
+        lock (_sync)
+        {
+            if (!_activeSessions.TryGetValue(sessionId, out var session)) return;
+
+            var now = DateTime.Now;
+            var updated = session with
+            {
+                IsLocked = isLocked ?? session.IsLocked,
+                IsDisconnected = isDisconnected ?? session.IsDisconnected
+            };
+            var shouldPause = updated.IsLocked || updated.IsDisconnected;
+
+            if (shouldPause && !session.IsPaused)
+            {
+                updated = updated with { PausedAt = now };
+                EventRepository.LogEvent(session.UserSid, EventType.SESSION_PAUSED, reason);
+                _logger.Information("Usage counting paused for {Username}: {Reason}", session.Username, reason);
+            }
+            else if (!shouldPause && session.PausedAt is { } pausedAt)
+            {
+                var pausedFor = now - pausedAt;
+                var lastTick = pausedFor > TimeSpan.Zero ? session.LastTick + pausedFor : now;
+                updated = updated with { PausedAt = null, LastTick = lastTick };
+
+                var pausedMinutes = (int)Math.Max(0, pausedFor.TotalMinutes);
+                EventRepository.LogEvent(session.UserSid, EventType.SESSION_RESUMED,
+                    $"{reason} after ~{pausedMinutes} min");
+                _logger.Information("Usage counting resumed for {Username}: {Reason} after ~{Minutes} min",
+                    session.Username, reason, pausedMinutes);
+            }
+
+            _activeSessions[sessionId] = updated;
         }
     }
 
@@ -127,12 +208,19 @@ public sealed class SessionTracker
         _isAwake = false;
         _logger.Information("System entering sleep");
 
-        var now = DateTime.Now;
-        foreach (var (sessionId, session) in _activeSessions)
+        lock (_sync)
         {
-            FlushSessionTime(session);
-            _activeSessions[sessionId] = session with { LastTick = now };
-            EventRepository.LogEvent(session.UserSid, EventType.SLEEP);
+            var now = DateTime.Now;
+            foreach (var (sessionId, session) in _activeSessions)
+            {
+                FlushSessionTime(session);
+                _activeSessions[sessionId] = session with
+                {
+                    LastTick = now,
+                    PausedAt = session.IsPaused ? now : null
+                };
+                EventRepository.LogEvent(session.UserSid, EventType.SLEEP);
+            }
         }
     }
 
@@ -141,13 +229,20 @@ public sealed class SessionTracker
         _isAwake = true;
         _logger.Information("System resuming from sleep");
 
-        var now = DateTime.Now;
-        foreach (var (sessionId, session) in _activeSessions)
+        lock (_sync)
         {
-            var sleepMinutes = (int)(now - session.LastTick).TotalMinutes;
-            var detail = sleepMinutes > 1 ? $"After ~{sleepMinutes} min sleep" : "";
-            _activeSessions[sessionId] = session with { LastTick = now };
-            EventRepository.LogEvent(session.UserSid, EventType.WAKE, detail);
+            var now = DateTime.Now;
+            foreach (var (sessionId, session) in _activeSessions)
+            {
+                var sleepMinutes = (int)(now - session.LastTick).TotalMinutes;
+                var detail = sleepMinutes > 1 ? $"After ~{sleepMinutes} min sleep" : "";
+                _activeSessions[sessionId] = session with
+                {
+                    LastTick = now,
+                    PausedAt = session.IsPaused ? now : null
+                };
+                EventRepository.LogEvent(session.UserSid, EventType.WAKE, detail);
+            }
         }
     }
 
@@ -158,9 +253,20 @@ public sealed class SessionTracker
 
     public void TickAllSessions()
     {
+        lock (_sync)
+        {
+            TickAllSessionsCore();
+        }
+    }
+
+    private void TickAllSessionsCore()
+    {
         var now = DateTime.Now;
         foreach (var (sessionId, session) in _activeSessions)
         {
+            // Locked or disconnected: nothing to count until the session is resumed
+            if (session.IsPaused) continue;
+
             if (now < session.LastTick)
             {
                 _logger.Warning("Clock manipulation detected for {Username}: current time {Now} is before last tick {LastTick}",
@@ -208,22 +314,25 @@ public sealed class SessionTracker
             }
 
             UsageRepository.AddMinutes(user.Id, today, elapsed);
-            _activeSessions[sessionId] = session with { LastTick = now };
+            // Advance by whole minutes only: the remaining seconds are counted on the next tick
+            // instead of being dropped (matters after a pause, when ticks are no longer aligned).
+            _activeSessions[sessionId] = session with { LastTick = session.LastTick.AddMinutes(elapsed) };
         }
     }
 
     private void FlushSessionTime(ActiveSession session)
     {
-        var now = DateTime.Now;
-        if (now < session.LastTick) return;
-        var elapsed = (int)(now - session.LastTick).TotalMinutes;
+        // A paused session has nothing to count after the moment it was paused
+        var end = session.PausedAt ?? DateTime.Now;
+        if (end < session.LastTick) return;
+        var elapsed = (int)(end - session.LastTick).TotalMinutes;
         if (elapsed < 1) return;
         if (elapsed > 2) elapsed = 1;
 
         var user = UserRepository.GetBySid(session.UserSid);
         if (user is null) return;
 
-        var today = DateOnly.FromDateTime(now);
+        var today = DateOnly.FromDateTime(end);
         UsageRepository.AddMinutes(user.Id, today, elapsed);
     }
 }

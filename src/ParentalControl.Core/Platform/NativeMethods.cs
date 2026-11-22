@@ -87,4 +87,20 @@ internal static class NativeMethods
         public string pWinStationName;
         public WTS_CONNECTSTATE_CLASS State;
     }
+
+    internal const int WTS_SESSIONSTATE_LOCK = 0;
+    internal const int WTS_SESSIONSTATE_UNLOCK = 1;
+
+    /// <summary>
+    /// Leading fields of WTSINFOEXW with a WTSINFOEX_LEVEL1_W payload (returned for WTSSessionInfoEx).
+    /// The level-1 union is 8-byte aligned (it contains LARGE_INTEGER fields), so it starts at offset 8.
+    /// </summary>
+    [StructLayout(LayoutKind.Explicit)]
+    internal struct WTSINFOEX_LEVEL1_HEADER
+    {
+        [FieldOffset(0)] public int Level;
+        [FieldOffset(8)] public int SessionId;
+        [FieldOffset(12)] public WTS_CONNECTSTATE_CLASS SessionState;
+        [FieldOffset(16)] public int SessionFlags;
+    }
 }
