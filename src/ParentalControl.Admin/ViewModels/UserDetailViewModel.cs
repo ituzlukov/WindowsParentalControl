@@ -2,6 +2,7 @@ using System.Collections.ObjectModel;
 using System.Windows;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using ParentalControl.Core;
 using ParentalControl.Core.Data;
 using ParentalControl.Core.Models;
 
@@ -105,10 +106,10 @@ public partial class UserDetailViewModel : ObservableObject
     [RelayCommand]
     private void SetLimits()
     {
-        if (!TimeOnly.TryParse(ScheduleStart, out var start) ||
-            !TimeOnly.TryParse(ScheduleEnd, out var end))
+        if (!TimeInput.TryParse(ScheduleStart, out var start) ||
+            !TimeInput.TryParse(ScheduleEnd, out var end))
         {
-            ShowValidationError("Invalid time format. Use HH:mm (e.g., 08:00).");
+            ShowValidationError("Invalid time format. Use HH:mm or just digits (e.g., 08:00, 800 or 8).");
             return;
         }
 
@@ -229,9 +230,9 @@ public partial class UserDetailViewModel : ObservableObject
 
         if (!string.IsNullOrWhiteSpace(row.ScheduleStart))
         {
-            if (!TimeOnly.TryParse(row.ScheduleStart.Trim(), out var start))
+            if (!TimeInput.TryParse(row.ScheduleStart.Trim(), out var start))
             {
-                error = "invalid schedule start. Use HH:mm (e.g., 08:00), or leave empty to use the default.";
+                error = "invalid schedule start. Use HH:mm or just digits (e.g., 08:00, 800 or 8), or leave empty to use the default.";
                 return null;
             }
             dayOverride.ScheduleStart = start;
@@ -239,9 +240,9 @@ public partial class UserDetailViewModel : ObservableObject
 
         if (!string.IsNullOrWhiteSpace(row.ScheduleEnd))
         {
-            if (!TimeOnly.TryParse(row.ScheduleEnd.Trim(), out var end))
+            if (!TimeInput.TryParse(row.ScheduleEnd.Trim(), out var end))
             {
-                error = "invalid schedule end. Use HH:mm (e.g., 22:00), or leave empty to use the default.";
+                error = "invalid schedule end. Use HH:mm or just digits (e.g., 22:00, 2200 or 22), or leave empty to use the default.";
                 return null;
             }
             dayOverride.ScheduleEnd = end;

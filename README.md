@@ -36,6 +36,7 @@ Parental Control is a **Windows desktop application** that lets administrators e
 
 ### Schedule Windows
 - Define allowed hours for each user (e.g., 08:00 to 22:00)
+- Times can be typed without a colon: `2200`, `22`, `730` or `22.00` are understood as `22:00`, `22:00`, `07:30` and `22:00`
 - Users are forcefully logged off if they are still logged in when their schedule window closes
 - Login attempts outside the schedule window are denied
 
@@ -203,7 +204,7 @@ ParentalControl/
 │       └── UsageMonitorWorker.cs        # 60-second enforcement loop
 │
 ├── tests/
-│   └── ParentalControl.Tests/           # xUnit tests (effective limits, logoff warnings)
+│   └── ParentalControl.Tests/           # xUnit tests (effective limits, logoff warnings, time input)
 │
 ├── installer/
 │   ├── ParentalControl.iss              # Inno Setup installer script

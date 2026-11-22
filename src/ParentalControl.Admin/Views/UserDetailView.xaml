@@ -134,13 +134,13 @@
                                      Style="{StaticResource MaterialDesignOutlinedTextBox}" />
 
                             <TextBox Grid.Column="3"
-                                     md:HintAssist.Hint="Schedule Start (HH:mm)"
+                                     md:HintAssist.Hint="Schedule Start (HH:mm or HHmm)"
                                      md:HintAssist.IsFloating="True"
                                      Text="{Binding ScheduleStart, UpdateSourceTrigger=PropertyChanged}"
                                      Style="{StaticResource MaterialDesignOutlinedTextBox}" />
 
                             <TextBox Grid.Column="5"
-                                     md:HintAssist.Hint="Schedule End (HH:mm)"
+                                     md:HintAssist.Hint="Schedule End (HH:mm or HHmm)"
                                      md:HintAssist.IsFloating="True"
                                      Text="{Binding ScheduleEnd, UpdateSourceTrigger=PropertyChanged}"
                                      Style="{StaticResource MaterialDesignOutlinedTextBox}" />
@@ -175,13 +175,13 @@
                                         <TextBox Grid.Column="3"
                                                  md:HintAssist.Hint="{Binding DataContext.ScheduleStart, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                  Text="{Binding ScheduleStart, UpdateSourceTrigger=PropertyChanged}"
-                                                 ToolTip="Schedule start (HH:mm) on this day"
+                                                 ToolTip="Schedule start (HH:mm or HHmm, e.g. 2200) on this day"
                                                  Style="{StaticResource MaterialDesignTextBox}" />
 
                                         <TextBox Grid.Column="5"
                                                  md:HintAssist.Hint="{Binding DataContext.ScheduleEnd, RelativeSource={RelativeSource AncestorType=UserControl}}"
                                                  Text="{Binding ScheduleEnd, UpdateSourceTrigger=PropertyChanged}"
-                                                 ToolTip="Schedule end (HH:mm) on this day"
+                                                 ToolTip="Schedule end (HH:mm or HHmm, e.g. 2200) on this day"
                                                  Style="{StaticResource MaterialDesignTextBox}" />
                                     </Grid>
                                 </DataTemplate>
