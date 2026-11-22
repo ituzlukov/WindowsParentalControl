@@ -187,6 +187,9 @@ ParentalControl/
 │       ├── SessionTracker.cs            # Active session tracking & enforcement
 │       └── UsageMonitorWorker.cs        # 60-second enforcement loop
 │
+├── tests/
+│   └── ParentalControl.Tests/           # xUnit tests (effective limits, logoff warnings)
+│
 ├── installer/
 │   ├── ParentalControl.iss              # Inno Setup installer script
 │   └── Output/                          # Generated installer output
@@ -229,6 +232,12 @@ dotnet run --project src/ParentalControl.Service
 ```
 
 > **Note:** The service needs to run with administrator privileges to track sessions and enforce logoffs. Right-click your terminal and "Run as Administrator" before starting the service.
+
+### Running the Tests
+
+```bash
+dotnet test tests/ParentalControl.Tests
+```
 
 ### Building the Installer
 
