@@ -136,6 +136,14 @@ public sealed class SessionTracker
                 SessionManager.ForceLogoff(sessionId);
                 return;
             }
+
+            if (usage?.ParentLocked == true)
+            {
+                _logger.Information("Login denied (locked by parent): {Username}", username);
+                EventRepository.LogEvent(sid, EventType.LOGIN_DENIED, "Locked by parent");
+                SessionManager.ForceLogoff(sessionId);
+                return;
+            }
         }
 
         _activeSessions.TryAdd(sessionId, new ActiveSession(sessionId, sid, username, DateTime.Now, isAdmin));

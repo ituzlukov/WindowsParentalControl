@@ -65,6 +65,16 @@ Parental Control is a **Windows desktop application** that lets administrators e
 - If no more time is granted within 15 minutes, the session is logged off, so nothing keeps running in it (voice chat, music, downloads)
 - A new login while out of time is still denied right away (nothing to lose yet), and clock tampering still logs the user off
 
+### Telegram Bot (optional)
+Check the status and grant time from your phone, also when you are away from home.
+- Create a bot with [@BotFather](https://t.me/BotFather) (`/newbot`), then in the Admin UI open **Telegram**, paste the token and press **Save**
+- Press **Generate pairing code** and send `/start <code>` to your bot within 10 minutes; repeat for each parent. The bot answers only paired chats; five wrong codes invalidate the current one
+- `/status` shows, per restricted user: time used and left, today's allowed hours, the session state (active, screen locked, locked out), with buttons **+15 / +30 / +60 min** and **Lock now** / **Unlock**
+- When a session is locked out because time is up, you get a message with the same buttons; adding time lets the child continue where they left off
+- **Lock now** locks the user out for the rest of the day (logged off after 15 minutes like any lockout); granting bonus time or **Unlock** lifts it
+- The service only makes outgoing HTTPS requests to Telegram (long polling); nothing listens on the computer. The bot token is stored in the database, which restricted users cannot read
+- Note: user names and usage are sent through Telegram's servers
+
 ### Event & Audit Logging
 All enforcement actions are logged with timestamps, user SIDs, and details:
 
@@ -217,7 +227,7 @@ ParentalControl/
 │       └── UsageMonitorWorker.cs        # 60-second enforcement loop
 │
 ├── tests/
-│   └── ParentalControl.Tests/           # xUnit tests (effective limits, logoff warnings, lockout, time input)
+│   └── ParentalControl.Tests/           # xUnit tests (effective limits, logoff warnings, lockout, time input, Telegram bot)
 │
 ├── installer/
 │   ├── ParentalControl.iss              # Inno Setup installer script
@@ -336,8 +346,9 @@ The Admin UI and the Service both read/write the same SQLite database at `C:\Pro
 | `users` | Local Windows users (SID, username, restricted flag) |
 | `limits` | Per-user limit config (daily minutes, schedule start/end) |
 | `limit_overrides` | Per-user, per-weekday overrides of `limits`; `NULL` fields use the default |
-| `usage` | Daily usage records (user, date, minutes used, bonus minutes granted for the day) |
+| `usage` | Daily usage records (user, date, minutes used, bonus minutes granted for the day, locked by parent) |
 | `events` | Audit log of all enforcement events |
+| `settings` | Application settings as key/value pairs (Telegram bot token, paired chats) |
 
 ---
 

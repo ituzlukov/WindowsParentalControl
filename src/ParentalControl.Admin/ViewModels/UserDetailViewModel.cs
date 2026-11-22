@@ -140,6 +140,17 @@ public partial class UserDetailViewModel : ObservableObject
     }
 
     [RelayCommand]
+    private void UnlockParentLock()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        UsageRepository.SetParentLock(User.Id, today, false);
+        EventRepository.LogEvent(User.Sid, EventType.LOCKED_OUT, "Parent lock lifted in the admin app");
+
+        User.RefreshUsage();
+        RefreshEvents();
+    }
+
+    [RelayCommand]
     private void SetLimits()
     {
         if (!TimeInput.TryParse(ScheduleStart, out var start) ||

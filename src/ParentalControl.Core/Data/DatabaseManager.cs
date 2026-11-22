@@ -102,6 +102,8 @@ public static class DatabaseManager
 
         // Extra minutes granted for a day, on top of the daily limit (added after the first release)
         AddColumnIfMissing(connection, "usage", "bonus_minutes", "INTEGER NOT NULL DEFAULT 0");
+        // Locked by a parent for the rest of the day ("Lock now"); cleared when bonus time is granted
+        AddColumnIfMissing(connection, "usage", "parent_lock", "INTEGER NOT NULL DEFAULT 0");
     }
 
     private static void AddColumnIfMissing(SqliteConnection connection, string table, string column, string definition)

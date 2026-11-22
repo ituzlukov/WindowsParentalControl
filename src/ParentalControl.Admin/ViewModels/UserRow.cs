@@ -47,11 +47,17 @@ public partial class UserRow : ObservableObject
     [NotifyPropertyChangedFor(nameof(UsageSummary))]
     private int _todayBonusMinutes;
 
+    /// <summary>A parent locked the user for the rest of today ("Lock now" in Telegram).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(LimitSummary))]
+    private bool _todayParentLocked;
+
     public string LimitSummary
     {
         get
         {
             if (!DailyMinutes.HasValue) return "No limits";
+            if (TodayParentLocked) return "Locked by parent for today";
             var total = DailyMinutes.Value + TodayBonusMinutes;
             var remaining = Math.Max(0, total - TodayMinutesUsed);
             return $"{FormatMinutes(total)} today ({FormatMinutes(remaining)} remaining)";
@@ -125,6 +131,7 @@ public partial class UserRow : ObservableObject
         {
             row.TodayMinutesUsed = usage.MinutesUsed;
             row.TodayBonusMinutes = usage.BonusMinutes;
+            row.TodayParentLocked = usage.ParentLocked;
         }
 
         return row;
@@ -153,5 +160,6 @@ public partial class UserRow : ObservableObject
         var usage = UsageRepository.GetUsage(Id, today);
         TodayMinutesUsed = usage?.MinutesUsed ?? 0;
         TodayBonusMinutes = usage?.BonusMinutes ?? 0;
+        TodayParentLocked = usage?.ParentLocked ?? false;
     }
 }

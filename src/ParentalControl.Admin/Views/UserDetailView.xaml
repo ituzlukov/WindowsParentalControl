@@ -127,6 +127,14 @@
                                     Command="{Binding AddCustomBonusCommand}"
                                     Style="{StaticResource MaterialDesignPaperButton}"
                                     Padding="12,2" Height="28" VerticalAlignment="Center" />
+
+                            <!-- Shown when a parent used "Lock now" in Telegram -->
+                            <Button Content="Unlock (locked by parent)"
+                                    Command="{Binding UnlockParentLockCommand}"
+                                    Visibility="{Binding User.TodayParentLocked, Converter={StaticResource BooleanToVisibilityConverter}}"
+                                    Style="{StaticResource MaterialDesignPaperButton}"
+                                    Background="#D32F2F" Foreground="White" BorderBrush="#D32F2F"
+                                    Padding="8,2" Height="28" Margin="32,0,0,0" VerticalAlignment="Center" />
                         </WrapPanel>
                     </Grid>
                 </md:Card>

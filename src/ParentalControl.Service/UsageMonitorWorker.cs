@@ -3,24 +3,39 @@ using System.Runtime.InteropServices;
 using ParentalControl.Core.Data;
 using ParentalControl.Core.Models;
 using ParentalControl.Core.Platform;
+using ParentalControl.Service.Telegram;
 namespace ParentalControl.Service;
 
 public sealed class UsageMonitorWorker : BackgroundService
 {
     private readonly SessionTracker _sessionTracker;
+    private readonly TelegramNotifier _notifier;
     private readonly Serilog.ILogger _logger;
     private static readonly TimeSpan TickInterval = TimeSpan.FromSeconds(60);
     private static readonly TimeSpan RelockDelay = TimeSpan.FromSeconds(5);
     private DateOnly _lastCleanupDate = DateOnly.MinValue;
-    // Ticks and session-resume handling may enforce the same session concurrently
+    // Ticks, session-resume handling and Telegram commands may enforce the same session concurrently
     private readonly object _enforceSync = new();
     private readonly ConcurrentDictionary<int, DateTime> _relockPending = new();
 
-    public UsageMonitorWorker(SessionTracker sessionTracker, Serilog.ILogger logger)
+    public UsageMonitorWorker(SessionTracker sessionTracker, TelegramNotifier notifier, Serilog.ILogger logger)
     {
         _sessionTracker = sessionTracker;
+        _notifier = notifier;
         _logger = logger;
         _sessionTracker.SessionResumed += OnSessionResumed;
+    }
+
+    /// <summary>
+    /// Applies limits to the user's sessions right away, e.g. after a parent granted time or locked the user
+    /// from Telegram, instead of waiting for the next tick.
+    /// </summary>
+    public void EnforceUser(string userSid)
+    {
+        foreach (var (sessionId, session) in _sessionTracker.ActiveSessions)
+        {
+            if (session.UserSid == userSid) EnforceSession(sessionId);
+        }
     }
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -112,7 +127,11 @@ public sealed class UsageMonitorWorker : BackgroundService
             var minutesUsed = usage?.MinutesUsed ?? 0;
             var limitReached = minutesUsed >= allowed && usage is not null;
             var outsideSchedule = now < limit.ScheduleStart || now >= limit.ScheduleEnd;
-            var reason = limitReached ? "Daily limit reached" : outsideSchedule ? "Outside allowed schedule" : null;
+            var parentLocked = usage?.ParentLocked == true;
+            var reason = parentLocked ? "Locked by parent"
+                : limitReached ? "Daily limit reached"
+                : outsideSchedule ? "Outside allowed schedule"
+                : null;
 
             switch (LockoutPolicy.Decide(reason is not null, session.LockedOutAt, session.IsPaused, dateTimeNow))
             {
@@ -128,7 +147,11 @@ public sealed class UsageMonitorWorker : BackgroundService
                     break;
 
                 case LockoutAction.LockOut:
-                    if (limitReached)
+                    if (parentLocked)
+                    {
+                        _logger.Information("{Username} locked by a parent", session.Username);
+                    }
+                    else if (limitReached)
                     {
                         _logger.Information("Daily limit reached for {Username} ({MinutesUsed}/{Allowed} min, bonus {Bonus})",
                             session.Username, minutesUsed, allowed, usage?.BonusMinutes ?? 0);
@@ -145,6 +168,7 @@ public sealed class UsageMonitorWorker : BackgroundService
                     SessionManager.DisconnectSession(sessionId);
                     EventRepository.LogEvent(session.UserSid, EventType.LOCKED_OUT,
                         $"{reason}; logoff in {LockoutPolicy.GracePeriod.TotalMinutes:0} min unless more time is granted");
+                    _notifier.NotifyLockedOut(user, reason!, dateTimeNow + LockoutPolicy.GracePeriod);
                     break;
 
                 case LockoutAction.RelockAfterNotice:
@@ -158,6 +182,9 @@ public sealed class UsageMonitorWorker : BackgroundService
                     EventRepository.LogEvent(session.UserSid, EventType.FORCED_LOGOUT,
                         $"{reason}; locked out for {LockoutPolicy.GracePeriod.TotalMinutes:0} min");
                     _sessionTracker.RemoveSession(sessionId);
+                    _notifier.NotifyText(
+                        $"{user.Username} was logged off: {reason}, no time was added within " +
+                        $"{LockoutPolicy.GracePeriod.TotalMinutes:0} minutes.");
                     break;
             }
         }
