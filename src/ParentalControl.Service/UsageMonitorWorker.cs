@@ -61,7 +61,7 @@ public sealed class UsageMonitorWorker : BackgroundService
             var user = UserRepository.GetBySid(session.UserSid);
             if (user is null || !user.IsRestricted || session.IsAdmin) continue;
 
-            var limit = LimitRepository.GetByUserId(user.Id);
+            var limit = LimitRepository.GetEffective(user.Id, today);
             if (limit is null) continue;
 
             var usage = UsageRepository.GetUsage(user.Id, today);

@@ -72,7 +72,7 @@ public static class UserRepository
         using var connection = DatabaseManager.CreateConnection();
         using var transaction = connection.BeginTransaction();
 
-        foreach (var table in new[] { "usage", "limits" })
+        foreach (var table in new[] { "usage", "limit_overrides", "limits" })
         {
             using var dependentCmd = connection.CreateCommand();
             dependentCmd.Transaction = transaction;

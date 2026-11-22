@@ -60,6 +60,18 @@ public static class DatabaseManager
                 FOREIGN KEY (user_id) REFERENCES users(id)
             );
 
+            -- Per-weekday overrides of limits; NULL means "use the value from limits".
+            -- day_of_week: 0 = Sunday ... 6 = Saturday (System.DayOfWeek)
+            CREATE TABLE IF NOT EXISTS limit_overrides (
+                user_id INTEGER NOT NULL,
+                day_of_week INTEGER NOT NULL,
+                daily_minutes INTEGER NULL,
+                schedule_start TEXT NULL,
+                schedule_end TEXT NULL,
+                PRIMARY KEY (user_id, day_of_week),
+                FOREIGN KEY (user_id) REFERENCES users(id)
+            );
+
             CREATE TABLE IF NOT EXISTS usage (
                 user_id INTEGER NOT NULL,
                 date TEXT NOT NULL,

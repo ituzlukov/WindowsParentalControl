@@ -116,6 +116,7 @@
                     <StackPanel>
                         <Grid>
                             <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="110" />
                                 <ColumnDefinition Width="200" />
                                 <ColumnDefinition Width="16" />
                                 <ColumnDefinition Width="200" />
@@ -123,24 +124,69 @@
                                 <ColumnDefinition Width="200" />
                             </Grid.ColumnDefinitions>
 
-                            <TextBox Grid.Column="0"
+                            <TextBlock Grid.Column="0" Text="Default"
+                                       FontWeight="SemiBold" VerticalAlignment="Center" />
+
+                            <TextBox Grid.Column="1"
                                      md:HintAssist.Hint="Daily Usage (minutes)"
                                      md:HintAssist.IsFloating="True"
                                      Text="{Binding DailyMinutes, UpdateSourceTrigger=PropertyChanged}"
                                      Style="{StaticResource MaterialDesignOutlinedTextBox}" />
 
-                            <TextBox Grid.Column="2"
+                            <TextBox Grid.Column="3"
                                      md:HintAssist.Hint="Schedule Start (HH:mm)"
                                      md:HintAssist.IsFloating="True"
                                      Text="{Binding ScheduleStart, UpdateSourceTrigger=PropertyChanged}"
                                      Style="{StaticResource MaterialDesignOutlinedTextBox}" />
 
-                            <TextBox Grid.Column="4"
+                            <TextBox Grid.Column="5"
                                      md:HintAssist.Hint="Schedule End (HH:mm)"
                                      md:HintAssist.IsFloating="True"
                                      Text="{Binding ScheduleEnd, UpdateSourceTrigger=PropertyChanged}"
                                      Style="{StaticResource MaterialDesignOutlinedTextBox}" />
                         </Grid>
+
+                        <!-- Per-weekday overrides: an empty field uses the default above (shown as a hint) -->
+                        <TextBlock Text="Per-day overrides (leave a field empty to use the default)"
+                                   FontSize="12" Opacity="0.6" Margin="0,20,0,4" />
+
+                        <ItemsControl ItemsSource="{Binding DayOverrides}" IsTabStop="False">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Grid Margin="0,2">
+                                        <Grid.ColumnDefinitions>
+                                            <ColumnDefinition Width="110" />
+                                            <ColumnDefinition Width="200" />
+                                            <ColumnDefinition Width="16" />
+                                            <ColumnDefinition Width="200" />
+                                            <ColumnDefinition Width="16" />
+                                            <ColumnDefinition Width="200" />
+                                        </Grid.ColumnDefinitions>
+
+                                        <TextBlock Grid.Column="0" Text="{Binding DayName}"
+                                                   VerticalAlignment="Center" />
+
+                                        <TextBox Grid.Column="1"
+                                                 md:HintAssist.Hint="{Binding DataContext.DailyMinutes, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                 Text="{Binding DailyMinutes, UpdateSourceTrigger=PropertyChanged}"
+                                                 ToolTip="Daily usage (minutes) on this day"
+                                                 Style="{StaticResource MaterialDesignTextBox}" />
+
+                                        <TextBox Grid.Column="3"
+                                                 md:HintAssist.Hint="{Binding DataContext.ScheduleStart, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                 Text="{Binding ScheduleStart, UpdateSourceTrigger=PropertyChanged}"
+                                                 ToolTip="Schedule start (HH:mm) on this day"
+                                                 Style="{StaticResource MaterialDesignTextBox}" />
+
+                                        <TextBox Grid.Column="5"
+                                                 md:HintAssist.Hint="{Binding DataContext.ScheduleEnd, RelativeSource={RelativeSource AncestorType=UserControl}}"
+                                                 Text="{Binding ScheduleEnd, UpdateSourceTrigger=PropertyChanged}"
+                                                 ToolTip="Schedule end (HH:mm) on this day"
+                                                 Style="{StaticResource MaterialDesignTextBox}" />
+                                    </Grid>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
 
                         <StackPanel Orientation="Horizontal" Margin="0,20,0,0">
                             <Button Content="Set Limits"

@@ -100,7 +100,8 @@ public sealed class SessionTracker
             return;
         }
 
-        var limit = LimitRepository.GetByUserId(user.Id);
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        var limit = LimitRepository.GetEffective(user.Id, today);
         UsageRecord? usage = null;
         if (limit is not null)
         {
@@ -113,7 +114,6 @@ public sealed class SessionTracker
                 return;
             }
 
-            var today = DateOnly.FromDateTime(DateTime.Now);
             usage = UsageRepository.GetUsage(user.Id, today);
             if (usage is not null && usage.MinutesUsed >= limit.DailyMinutes)
             {
@@ -275,10 +275,10 @@ public sealed class SessionTracker
                 var clockUser = UserRepository.GetBySid(session.UserSid);
                 if (clockUser is not null && clockUser.IsRestricted && !session.IsAdmin)
                 {
-                    var limit = LimitRepository.GetByUserId(clockUser.Id);
+                    var lockDate = DateOnly.FromDateTime(now);
+                    var limit = LimitRepository.GetEffective(clockUser.Id, lockDate);
                     if (limit is not null)
                     {
-                        var lockDate = DateOnly.FromDateTime(now);
                         UsageRepository.AddMinutes(clockUser.Id, lockDate, limit.DailyMinutes);
                         EventRepository.LogEvent(session.UserSid, EventType.CLOCK_TAMPER,
                             $"Clock went backwards: {session.LastTick:HH:mm:ss} → {now:HH:mm:ss}. Locked for today.");

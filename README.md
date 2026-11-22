@@ -39,6 +39,11 @@ Parental Control is a **Windows desktop application** that lets administrators e
 - Users are forcefully logged off if they are still logged in when their schedule window closes
 - Login attempts outside the schedule window are denied
 
+### Per-Day Overrides
+- Both the daily limit and the schedule window can be overridden for individual days of the week (e.g. more time and a later end on Friday and Saturday)
+- Each field of an override is optional: an empty field uses the default value, so you can change only the end of the window and keep the default limit
+- The dashboard shows the limit and schedule window in effect today
+
 ### Automatic Enforcement
 - The background service checks all active sessions every 60 seconds
 - If a user exceeds their daily limit, they are immediately logged off
@@ -156,6 +161,7 @@ ParentalControl/
 │   │   │   ├── MainViewModel.cs         # Service polling, view navigation
 │   │   │   ├── DashboardViewModel.cs    # User discovery, event loading
 │   │   │   ├── UserDetailViewModel.cs   # Limit editing, validation, save/remove
+│   │   │   ├── DayOverrideRow.cs        # One weekday row of the per-day overrides
 │   │   │   └── UserRow.cs              # Per-user presentation model
 │   │   ├── Helpers/
 │   │   │   └── DataGridScrollHelper.cs  # Shared DataGrid scroll behavior
@@ -172,6 +178,7 @@ ParentalControl/
 │   │   ├── Models/
 │   │   │   ├── User.cs                  # User model (Id, Sid, Username, IsRestricted)
 │   │   │   ├── LimitConfig.cs           # Limit model (DailyMinutes, ScheduleStart/End)
+│   │   │   ├── LimitOverride.cs         # Per-weekday override of the limits
 │   │   │   ├── UsageRecord.cs           # Usage model (UserId, Date, MinutesUsed)
 │   │   │   ├── EventRecord.cs           # Event model (Timestamp, UserSid, EventType)
 │   │   │   └── EventType.cs             # Event type enum
@@ -306,6 +313,7 @@ The Admin UI and the Service both read/write the same SQLite database at `C:\Pro
 |---|---|
 | `users` | Local Windows users (SID, username, restricted flag) |
 | `limits` | Per-user limit config (daily minutes, schedule start/end) |
+| `limit_overrides` | Per-user, per-weekday overrides of `limits`; `NULL` fields use the default |
 | `usage` | Daily usage records (user, date, minutes used) |
 | `events` | Audit log of all enforcement events |
 

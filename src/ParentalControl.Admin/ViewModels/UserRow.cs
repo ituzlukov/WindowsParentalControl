@@ -46,7 +46,7 @@ public partial class UserRow : ObservableObject
             if (!DailyMinutes.HasValue) return "No limits";
             var total = DailyMinutes.Value;
             var remaining = Math.Max(0, total - TodayMinutesUsed);
-            return $"{FormatMinutes(total)} / day ({FormatMinutes(remaining)} remaining)";
+            return $"{FormatMinutes(total)} today ({FormatMinutes(remaining)} remaining)";
         }
     }
 
@@ -55,7 +55,7 @@ public partial class UserRow : ObservableObject
         get
         {
             if (ScheduleStart is not null && ScheduleEnd is not null)
-                return $"{ScheduleStart} - {ScheduleEnd}";
+                return $"{ScheduleStart} - {ScheduleEnd} today";
             return "No schedule";
         }
     }
@@ -91,7 +91,7 @@ public partial class UserRow : ObservableObject
             IsAdmin = false
         };
 
-        var limit = LimitRepository.GetByUserId(user.Id);
+        var limit = LimitRepository.GetEffective(user.Id, DateOnly.FromDateTime(DateTime.Now));
         if (limit is not null)
         {
             row.DailyMinutes = limit.DailyMinutes;
@@ -111,7 +111,7 @@ public partial class UserRow : ObservableObject
 
     public void RefreshLimits()
     {
-        var limit = LimitRepository.GetByUserId(Id);
+        var limit = LimitRepository.GetEffective(Id, DateOnly.FromDateTime(DateTime.Now));
         if (limit is not null)
         {
             DailyMinutes = limit.DailyMinutes;

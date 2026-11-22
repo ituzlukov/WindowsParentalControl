@@ -9,25 +9,39 @@ namespace ParentalControl.Admin.ViewModels;
 
 public partial class UserDetailViewModel : ObservableObject
 {
+    private const int DefaultDailyMinutes = 120;
+    private const string DefaultScheduleStart = "08:00";
+    private const string DefaultScheduleEnd = "22:00";
+
     private readonly Dictionary<string, string> _sidToUsername;
     private readonly Action _navigateBack;
 
     public UserRow User { get; }
 
     [ObservableProperty]
-    private int _dailyMinutes = 120;
+    private int _dailyMinutes = DefaultDailyMinutes;
 
     [ObservableProperty]
-    private string _scheduleStart = "08:00";
+    private string _scheduleStart = DefaultScheduleStart;
 
     [ObservableProperty]
-    private string _scheduleEnd = "22:00";
+    private string _scheduleEnd = DefaultScheduleEnd;
 
     [ObservableProperty]
     private int _editableUsageMinutes;
 
     [ObservableProperty]
     private ObservableCollection<EventRecord> _eventRecords = [];
+
+    /// <summary>
+    /// Per-weekday overrides, Monday first.
+    /// </summary>
+    public ObservableCollection<DayOverrideRow> DayOverrides { get; } = new(
+        new[]
+        {
+            DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday,
+            DayOfWeek.Friday, DayOfWeek.Saturday, DayOfWeek.Sunday
+        }.Select(d => new DayOverrideRow(d)));
 
     public UserDetailViewModel(UserRow user, Dictionary<string, string> sidToUsername, Action navigateBack)
     {
@@ -92,35 +106,57 @@ public partial class UserDetailViewModel : ObservableObject
         if (!TimeOnly.TryParse(ScheduleStart, out var start) ||
             !TimeOnly.TryParse(ScheduleEnd, out var end))
         {
-            MessageBox.Show("Invalid time format. Use HH:mm (e.g., 08:00).", "Validation Error",
-                MessageBoxButton.OK, MessageBoxImage.Warning);
+            ShowValidationError("Invalid time format. Use HH:mm (e.g., 08:00).");
             return;
         }
 
         if (start >= end)
         {
-            MessageBox.Show("Schedule start must be before schedule end.", "Validation Error",
-                MessageBoxButton.OK, MessageBoxImage.Warning);
+            ShowValidationError("Schedule start must be before schedule end.");
             return;
         }
 
-        if (DailyMinutes < 1 || DailyMinutes > 1440)
+        if (!IsValidDailyMinutes(DailyMinutes))
         {
-            MessageBox.Show("Daily minutes must be between 1 and 1440 (24 hours).", "Validation Error",
-                MessageBoxButton.OK, MessageBoxImage.Warning);
+            ShowValidationError("Daily minutes must be between 1 and 1440 (24 hours).");
             return;
         }
 
-        LimitRepository.Upsert(new LimitConfig
+        var defaults = new LimitConfig
         {
             UserId = User.Id,
             DailyMinutes = DailyMinutes,
             ScheduleStart = start,
             ScheduleEnd = end
-        });
+        };
+
+        var overrides = new List<LimitOverride>();
+        foreach (var row in DayOverrides)
+        {
+            var dayOverride = ParseOverride(row, out var error);
+            if (dayOverride is null)
+            {
+                ShowValidationError($"{row.DayName}: {error}");
+                return;
+            }
+
+            var effective = defaults.WithOverride(dayOverride);
+            if (effective.ScheduleStart >= effective.ScheduleEnd)
+            {
+                ShowValidationError(
+                    $"{row.DayName}: schedule start ({effective.ScheduleStart:HH:mm}) must be before " +
+                    $"schedule end ({effective.ScheduleEnd:HH:mm}).");
+                return;
+            }
+
+            overrides.Add(dayOverride);
+        }
+
+        LimitRepository.Save(defaults, overrides);
         UserRepository.SetRestricted(User.Id, true);
         User.IsRestricted = true;
         User.RefreshLimits();
+        LoadLimitFields();
 
         MessageBox.Show("Limits saved successfully.", "Success",
             MessageBoxButton.OK, MessageBoxImage.Information);
@@ -139,24 +175,83 @@ public partial class UserDetailViewModel : ObservableObject
         User.IsRestricted = false;
         User.RefreshLimits();
 
-        DailyMinutes = 120;
-        ScheduleStart = "08:00";
-        ScheduleEnd = "22:00";
+        DailyMinutes = DefaultDailyMinutes;
+        ScheduleStart = DefaultScheduleStart;
+        ScheduleEnd = DefaultScheduleEnd;
+        foreach (var row in DayOverrides) row.Clear();
     }
 
     private void LoadLimitFields()
     {
-        if (User.DailyMinutes.HasValue)
+        var defaults = LimitRepository.GetByUserId(User.Id);
+        if (defaults is not null)
         {
-            DailyMinutes = User.DailyMinutes.Value;
-            ScheduleStart = User.ScheduleStart ?? "08:00";
-            ScheduleEnd = User.ScheduleEnd ?? "22:00";
+            DailyMinutes = defaults.DailyMinutes;
+            ScheduleStart = defaults.ScheduleStart.ToString("HH:mm");
+            ScheduleEnd = defaults.ScheduleEnd.ToString("HH:mm");
         }
         else
         {
-            DailyMinutes = 120;
-            ScheduleStart = "08:00";
-            ScheduleEnd = "22:00";
+            DailyMinutes = DefaultDailyMinutes;
+            ScheduleStart = DefaultScheduleStart;
+            ScheduleEnd = DefaultScheduleEnd;
         }
+
+        var overrides = defaults is null ? new List<LimitOverride>() : LimitRepository.GetOverrides(User.Id);
+        foreach (var row in DayOverrides)
+        {
+            var dayOverride = overrides.FirstOrDefault(o => o.DayOfWeek == row.Day);
+            row.DailyMinutes = dayOverride?.DailyMinutes?.ToString() ?? string.Empty;
+            row.ScheduleStart = dayOverride?.ScheduleStart?.ToString("HH:mm") ?? string.Empty;
+            row.ScheduleEnd = dayOverride?.ScheduleEnd?.ToString("HH:mm") ?? string.Empty;
+        }
+    }
+
+    /// <summary>
+    /// Parses a weekday row; empty fields stay null (use the default). Returns null and an error on invalid input.
+    /// </summary>
+    private LimitOverride? ParseOverride(DayOverrideRow row, out string error)
+    {
+        error = string.Empty;
+        var dayOverride = new LimitOverride { UserId = User.Id, DayOfWeek = row.Day };
+
+        if (!string.IsNullOrWhiteSpace(row.DailyMinutes))
+        {
+            if (!int.TryParse(row.DailyMinutes.Trim(), out var minutes) || !IsValidDailyMinutes(minutes))
+            {
+                error = "daily minutes must be between 1 and 1440 (24 hours), or empty to use the default.";
+                return null;
+            }
+            dayOverride.DailyMinutes = minutes;
+        }
+
+        if (!string.IsNullOrWhiteSpace(row.ScheduleStart))
+        {
+            if (!TimeOnly.TryParse(row.ScheduleStart.Trim(), out var start))
+            {
+                error = "invalid schedule start. Use HH:mm (e.g., 08:00), or leave empty to use the default.";
+                return null;
+            }
+            dayOverride.ScheduleStart = start;
+        }
+
+        if (!string.IsNullOrWhiteSpace(row.ScheduleEnd))
+        {
+            if (!TimeOnly.TryParse(row.ScheduleEnd.Trim(), out var end))
+            {
+                error = "invalid schedule end. Use HH:mm (e.g., 22:00), or leave empty to use the default.";
+                return null;
+            }
+            dayOverride.ScheduleEnd = end;
+        }
+
+        return dayOverride;
+    }
+
+    private static bool IsValidDailyMinutes(int minutes) => minutes is >= 1 and <= 1440;
+
+    private static void ShowValidationError(string message)
+    {
+        MessageBox.Show(message, "Validation Error", MessageBoxButton.OK, MessageBoxImage.Warning);
     }
 }
