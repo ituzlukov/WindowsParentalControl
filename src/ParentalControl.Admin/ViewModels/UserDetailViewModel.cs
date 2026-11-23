@@ -32,6 +32,10 @@ public partial class UserDetailViewModel : ObservableObject
     [ObservableProperty]
     private int? _editableUsageMinutes;
 
+    /// <summary>Custom bonus to add, next to the +15 / +30 / +60 buttons.</summary>
+    [ObservableProperty]
+    private int? _customBonusMinutes;
+
     [ObservableProperty]
     private ObservableCollection<EventRecord> _eventRecords = [];
 
@@ -101,6 +105,38 @@ public partial class UserDetailViewModel : ObservableObject
         UsageRepository.SetUsage(User.Id, today, minutes);
         User.RefreshUsage();
         EditableUsageMinutes = User.TodayMinutesUsed;
+    }
+
+    /// <summary>Grants extra minutes for today on top of the daily limit (button parameter: "15", "30", ...).</summary>
+    [RelayCommand]
+    private void AddBonus(string minutesText)
+    {
+        if (!int.TryParse(minutesText, out var minutes) || minutes <= 0) return;
+        GrantBonus(minutes);
+    }
+
+    [RelayCommand]
+    private void AddCustomBonus()
+    {
+        if (CustomBonusMinutes is not { } minutes || minutes < 1 || minutes > 720)
+        {
+            MessageBox.Show("Bonus must be between 1 and 720 minutes.", "Validation Error",
+                MessageBoxButton.OK, MessageBoxImage.Warning);
+            return;
+        }
+
+        GrantBonus(minutes);
+        CustomBonusMinutes = null;
+    }
+
+    private void GrantBonus(int minutes)
+    {
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        var totalBonus = UsageRepository.AddBonusMinutes(User.Id, today, minutes);
+        EventRepository.LogEvent(User.Sid, EventType.BONUS_GRANTED, $"+{minutes} min (bonus today: {totalBonus} min)");
+
+        User.RefreshUsage();
+        RefreshEvents();
     }
 
     [RelayCommand]

@@ -31,7 +31,8 @@ Parental Control is a **Windows desktop application** that lets administrators e
 ### Daily Time Limits
 - Set a maximum number of minutes per day for each user (default: 120 minutes)
 - Usage is tracked in real time, accumulating every 60 seconds
-- Administrators can directly edit a user's current daily usage from the Admin UI (useful for granting extra time or correcting usage)
+- Administrators can directly edit a user's current daily usage from the Admin UI (useful for correcting usage)
+- Extra time is granted as a bonus for today (+15 / +30 / +60 min buttons or a custom number of minutes) on top of the daily limit, so the usage shown stays the real time spent; the bonus applies to that day only and does not extend the schedule window
 - Resets automatically at midnight
 
 ### Schedule Windows
@@ -73,6 +74,7 @@ All enforcement actions are logged with timestamps, user SIDs, and details:
 | `SESSION_PAUSED` | Usage counting paused: session locked or disconnected |
 | `SESSION_RESUMED` | Usage counting resumed: session unlocked or reconnected |
 | `WARNING_SENT` | User was warned about an upcoming logoff |
+| `BONUS_GRANTED` | Bonus minutes were granted or cleared for today |
 
 ### Clock Tamper Detection
 - Detects when the system clock is set backwards (e.g., a user trying to gain extra screen time)
@@ -326,7 +328,7 @@ The Admin UI and the Service both read/write the same SQLite database at `C:\Pro
 | `users` | Local Windows users (SID, username, restricted flag) |
 | `limits` | Per-user limit config (daily minutes, schedule start/end) |
 | `limit_overrides` | Per-user, per-weekday overrides of `limits`; `NULL` fields use the default |
-| `usage` | Daily usage records (user, date, minutes used) |
+| `usage` | Daily usage records (user, date, minutes used, bonus minutes granted for the day) |
 | `events` | Audit log of all enforcement events |
 
 ---

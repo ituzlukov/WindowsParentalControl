@@ -12,5 +12,6 @@ public enum EventType
     CLOCK_TAMPER,
     SESSION_PAUSED,
     SESSION_RESUMED,
-    WARNING_SENT
+    WARNING_SENT,
+    BONUS_GRANTED
 }

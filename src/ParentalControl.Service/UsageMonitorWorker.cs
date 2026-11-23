@@ -66,12 +66,13 @@ public sealed class UsageMonitorWorker : BackgroundService
             if (limit is null) continue;
 
             var usage = UsageRepository.GetUsage(user.Id, today);
-            if (usage is not null && usage.MinutesUsed >= limit.DailyMinutes)
+            var allowed = UsageRecord.AllowedMinutes(limit, usage);
+            if (usage is not null && usage.MinutesUsed >= allowed)
             {
-                _logger.Information("Daily limit reached for {Username} ({MinutesUsed}/{DailyMinutes} min)",
-                    session.Username, usage.MinutesUsed, limit.DailyMinutes);
+                _logger.Information("Daily limit reached for {Username} ({MinutesUsed}/{Allowed} min, bonus {Bonus})",
+                    session.Username, usage.MinutesUsed, allowed, usage.BonusMinutes);
                 EventRepository.LogEvent(session.UserSid, EventType.LIMIT_REACHED,
-                    $"Used {usage.MinutesUsed} of {limit.DailyMinutes} minutes");
+                    $"Used {usage.MinutesUsed} of {allowed} minutes");
                 SessionManager.ForceLogoff(sessionId);
                 EventRepository.LogEvent(session.UserSid, EventType.FORCED_LOGOUT, "Daily limit reached");
                 _sessionTracker.RemoveSession(sessionId);
@@ -88,16 +89,17 @@ public sealed class UsageMonitorWorker : BackgroundService
                 continue;
             }
 
-            WarnIfLogoffIsNear(sessionId, session, limit, usage?.MinutesUsed ?? 0, now);
+            WarnIfLogoffIsNear(sessionId, session, limit, allowed, usage?.MinutesUsed ?? 0, now);
         }
     }
 
-    private void WarnIfLogoffIsNear(int sessionId, ActiveSession session, LimitConfig limit, int minutesUsed, TimeOnly now)
+    private void WarnIfLogoffIsNear(
+        int sessionId, ActiveSession session, LimitConfig limit, int allowedMinutes, int minutesUsed, TimeOnly now)
     {
         // Nobody would see a message in a locked or disconnected session; it is shown after the session resumes.
         if (session.IsPaused) return;
 
-        var remaining = UsageWarnings.GetRemainingMinutes(limit, minutesUsed, now);
+        var remaining = UsageWarnings.GetRemainingMinutes(allowedMinutes, minutesUsed, limit.ScheduleEnd, now);
         var (warnThreshold, newState) = UsageWarnings.Evaluate(remaining, session.WarnedThreshold);
         if (newState != session.WarnedThreshold)
         {

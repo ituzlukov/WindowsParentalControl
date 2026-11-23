@@ -93,6 +93,21 @@ public static class DatabaseManager
             CREATE INDEX IF NOT EXISTS idx_events_user_timestamp ON events (user_sid, timestamp);
             """;
         schemaCmd.ExecuteNonQuery();
+
+        // Extra minutes granted for a day, on top of the daily limit (added after the first release)
+        AddColumnIfMissing(connection, "usage", "bonus_minutes", "INTEGER NOT NULL DEFAULT 0");
+    }
+
+    private static void AddColumnIfMissing(SqliteConnection connection, string table, string column, string definition)
+    {
+        using var checkCmd = connection.CreateCommand();
+        checkCmd.CommandText = $"SELECT COUNT(*) FROM pragma_table_info('{table}') WHERE name = @column";
+        checkCmd.Parameters.AddWithValue("@column", column);
+        if (Convert.ToInt64(checkCmd.ExecuteScalar()) > 0) return;
+
+        using var alterCmd = connection.CreateCommand();
+        alterCmd.CommandText = $"ALTER TABLE {table} ADD COLUMN {column} {definition}";
+        alterCmd.ExecuteNonQuery();
     }
 
     public static SqliteConnection CreateConnection()

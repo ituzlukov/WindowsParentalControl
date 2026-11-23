@@ -119,7 +119,7 @@ public sealed class SessionTracker
             }
 
             usage = UsageRepository.GetUsage(user.Id, today);
-            if (usage is not null && usage.MinutesUsed >= limit.DailyMinutes)
+            if (usage is not null && usage.MinutesUsed >= UsageRecord.AllowedMinutes(limit, usage))
             {
                 _logger.Information("Login denied (limit reached): {Username}", username);
                 EventRepository.LogEvent(sid, EventType.LOGIN_DENIED, "Daily limit already reached");
@@ -133,7 +133,7 @@ public sealed class SessionTracker
         var loginDetail = "";
         if (limit is not null)
         {
-            var remaining = limit.DailyMinutes - (usage?.MinutesUsed ?? 0);
+            var remaining = UsageRecord.AllowedMinutes(limit, usage) - (usage?.MinutesUsed ?? 0);
             loginDetail = $"Remaining: {remaining / 60}h {remaining % 60}m";
         }
         EventRepository.LogEvent(sid, EventType.LOGIN, loginDetail);
@@ -294,7 +294,9 @@ public sealed class SessionTracker
                     var limit = LimitRepository.GetEffective(clockUser.Id, lockDate);
                     if (limit is not null)
                     {
-                        UsageRepository.AddMinutes(clockUser.Id, lockDate, limit.DailyMinutes);
+                        // Enough to use up today's allowance, bonus included
+                        var lockUsage = UsageRepository.GetUsage(clockUser.Id, lockDate);
+                        UsageRepository.AddMinutes(clockUser.Id, lockDate, UsageRecord.AllowedMinutes(limit, lockUsage));
                         EventRepository.LogEvent(session.UserSid, EventType.CLOCK_TAMPER,
                             $"Clock went backwards: {session.LastTick:HH:mm:ss} → {now:HH:mm:ss}. Locked for today.");
                         SessionManager.ForceLogoff(sessionId);

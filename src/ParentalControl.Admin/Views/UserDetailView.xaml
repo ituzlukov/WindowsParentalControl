@@ -51,6 +51,7 @@
                         <Grid.RowDefinitions>
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
 
                         <!-- Username -->
@@ -89,10 +90,15 @@
                         <TextBlock Grid.Row="0" Grid.Column="8"
                                    Text="TODAY'S USAGE" FontSize="10" Opacity="0.5"
                                    FontWeight="SemiBold" />
-                        <StackPanel Grid.Row="1" Grid.Column="8" Orientation="Horizontal" Margin="0,2,0,0">
+                        <TextBlock Grid.Row="1" Grid.Column="8"
+                                   Text="{Binding User.UsageSummary}"
+                                   FontSize="14" Margin="0,2,0,0" />
+
+                        <!-- Actions: correct today's usage, grant bonus time (on top of the daily limit) -->
+                        <WrapPanel Grid.Row="2" Grid.Column="0" Grid.ColumnSpan="9" Margin="0,16,0,0">
+                            <TextBlock Text="Set usage:" VerticalAlignment="Center" Margin="0,0,8,0" />
                             <TextBox Text="{Binding EditableUsageMinutes, UpdateSourceTrigger=PropertyChanged, TargetNullValue=''}"
                                      Width="60" VerticalAlignment="Center"
-                                     md:HintAssist.Hint="min"
                                      Style="{StaticResource MaterialDesignOutlinedTextBox}"
                                      Padding="4,2" FontSize="14" />
                             <TextBlock Text="min" VerticalAlignment="Center" Margin="6,0,8,0" Opacity="0.6" />
@@ -100,7 +106,28 @@
                                     Command="{Binding SetUsageCommand}"
                                     Style="{StaticResource MaterialDesignPaperButton}"
                                     Padding="12,2" Height="28" VerticalAlignment="Center" />
-                        </StackPanel>
+
+                            <TextBlock Text="Add bonus:" VerticalAlignment="Center" Margin="32,0,8,0" />
+                            <Button Content="+15" Command="{Binding AddBonusCommand}" CommandParameter="15"
+                                    Style="{StaticResource MaterialDesignPaperButton}"
+                                    Padding="8,2" Height="28" VerticalAlignment="Center" />
+                            <Button Content="+30" Command="{Binding AddBonusCommand}" CommandParameter="30"
+                                    Style="{StaticResource MaterialDesignPaperButton}"
+                                    Padding="8,2" Height="28" Margin="4,0,0,0" VerticalAlignment="Center" />
+                            <Button Content="+60" Command="{Binding AddBonusCommand}" CommandParameter="60"
+                                    Style="{StaticResource MaterialDesignPaperButton}"
+                                    Padding="8,2" Height="28" Margin="4,0,0,0" VerticalAlignment="Center" />
+                            <TextBlock Text="or" VerticalAlignment="Center" Margin="8,0" Opacity="0.6" />
+                            <TextBox Text="{Binding CustomBonusMinutes, UpdateSourceTrigger=PropertyChanged, TargetNullValue=''}"
+                                     Width="60" VerticalAlignment="Center"
+                                     Style="{StaticResource MaterialDesignOutlinedTextBox}"
+                                     Padding="4,2" FontSize="14" />
+                            <TextBlock Text="min" VerticalAlignment="Center" Margin="6,0,8,0" Opacity="0.6" />
+                            <Button Content="Add"
+                                    Command="{Binding AddCustomBonusCommand}"
+                                    Style="{StaticResource MaterialDesignPaperButton}"
+                                    Padding="12,2" Height="28" VerticalAlignment="Center" />
+                        </WrapPanel>
                     </Grid>
                 </md:Card>
 

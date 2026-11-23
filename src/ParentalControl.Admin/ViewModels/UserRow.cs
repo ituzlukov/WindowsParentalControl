@@ -25,6 +25,7 @@ public partial class UserRow : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(LimitSummary))]
+    [NotifyPropertyChangedFor(nameof(UsageSummary))]
     private int? _dailyMinutes;
 
     [ObservableProperty]
@@ -37,16 +38,35 @@ public partial class UserRow : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(LimitSummary))]
+    [NotifyPropertyChangedFor(nameof(UsageSummary))]
     private int _todayMinutesUsed;
+
+    /// <summary>Extra minutes granted for today on top of the daily limit.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(LimitSummary))]
+    [NotifyPropertyChangedFor(nameof(UsageSummary))]
+    private int _todayBonusMinutes;
 
     public string LimitSummary
     {
         get
         {
             if (!DailyMinutes.HasValue) return "No limits";
-            var total = DailyMinutes.Value;
+            var total = DailyMinutes.Value + TodayBonusMinutes;
             var remaining = Math.Max(0, total - TodayMinutesUsed);
             return $"{FormatMinutes(total)} today ({FormatMinutes(remaining)} remaining)";
+        }
+    }
+
+    /// <summary>Today's usage against today's allowance (daily limit plus bonus), e.g. "60 min of 180 (120 remaining)".</summary>
+    public string UsageSummary
+    {
+        get
+        {
+            if (!DailyMinutes.HasValue) return $"{TodayMinutesUsed} min (no limit)";
+            var total = DailyMinutes.Value + TodayBonusMinutes;
+            var remaining = Math.Max(0, total - TodayMinutesUsed);
+            return $"{TodayMinutesUsed} min of {total} ({remaining} remaining)";
         }
     }
 
@@ -104,6 +124,7 @@ public partial class UserRow : ObservableObject
         if (usage is not null)
         {
             row.TodayMinutesUsed = usage.MinutesUsed;
+            row.TodayBonusMinutes = usage.BonusMinutes;
         }
 
         return row;
@@ -131,5 +152,6 @@ public partial class UserRow : ObservableObject
         var today = DateOnly.FromDateTime(DateTime.Now);
         var usage = UsageRepository.GetUsage(Id, today);
         TodayMinutesUsed = usage?.MinutesUsed ?? 0;
+        TodayBonusMinutes = usage?.BonusMinutes ?? 0;
     }
 }

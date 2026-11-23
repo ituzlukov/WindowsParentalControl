@@ -5,17 +5,12 @@ namespace ParentalControl.Tests;
 
 public class UsageWarningsTests
 {
-    private static LimitConfig Limit(int dailyMinutes, int endHour, int endMinute = 0) => new()
-    {
-        DailyMinutes = dailyMinutes,
-        ScheduleStart = new TimeOnly(7, 0),
-        ScheduleEnd = new TimeOnly(endHour, endMinute)
-    };
+    private static readonly TimeOnly End21 = new(21, 0);
 
     [Fact]
     public void Remaining_ByDailyLimit_WhenItComesFirst()
     {
-        var remaining = UsageWarnings.GetRemainingMinutes(Limit(180, 21), minutesUsed: 175, new TimeOnly(15, 0));
+        var remaining = UsageWarnings.GetRemainingMinutes(180, minutesUsed: 175, End21, new TimeOnly(15, 0));
 
         Assert.Equal(5, remaining);
     }
@@ -23,7 +18,7 @@ public class UsageWarningsTests
     [Fact]
     public void Remaining_ByScheduleEnd_WhenItComesFirst()
     {
-        var remaining = UsageWarnings.GetRemainingMinutes(Limit(180, 21), minutesUsed: 0, new TimeOnly(20, 52));
+        var remaining = UsageWarnings.GetRemainingMinutes(180, minutesUsed: 0, End21, new TimeOnly(20, 52));
 
         Assert.Equal(8, remaining);
     }
@@ -31,7 +26,7 @@ public class UsageWarningsTests
     [Fact]
     public void Remaining_ByScheduleEnd_RoundsPartialMinutesUp()
     {
-        var remaining = UsageWarnings.GetRemainingMinutes(Limit(180, 21), minutesUsed: 0, new TimeOnly(20, 59, 10));
+        var remaining = UsageWarnings.GetRemainingMinutes(180, minutesUsed: 0, End21, new TimeOnly(20, 59, 10));
 
         Assert.Equal(1, remaining);
     }
@@ -39,9 +34,31 @@ public class UsageWarningsTests
     [Fact]
     public void Remaining_NeverNegative()
     {
-        var remaining = UsageWarnings.GetRemainingMinutes(Limit(60, 21), minutesUsed: 90, new TimeOnly(12, 0));
+        var remaining = UsageWarnings.GetRemainingMinutes(60, minutesUsed: 90, End21, new TimeOnly(12, 0));
 
         Assert.Equal(0, remaining);
+    }
+
+    [Fact]
+    public void AllowedMinutes_IncludesBonus()
+    {
+        var limit = new LimitConfig { DailyMinutes = 180 };
+
+        Assert.Equal(180, UsageRecord.AllowedMinutes(limit, usage: null));
+        Assert.Equal(180, UsageRecord.AllowedMinutes(limit, new UsageRecord { MinutesUsed = 100 }));
+        Assert.Equal(210, UsageRecord.AllowedMinutes(limit, new UsageRecord { MinutesUsed = 100, BonusMinutes = 30 }));
+    }
+
+    [Fact]
+    public void Remaining_WithBonus_ExtendsDailyLimit()
+    {
+        var limit = new LimitConfig { DailyMinutes = 180 };
+        var usage = new UsageRecord { MinutesUsed = 178, BonusMinutes = 30 };
+
+        var remaining = UsageWarnings.GetRemainingMinutes(
+            UsageRecord.AllowedMinutes(limit, usage), usage.MinutesUsed, End21, new TimeOnly(15, 0));
+
+        Assert.Equal(32, remaining);
     }
 
     [Theory]

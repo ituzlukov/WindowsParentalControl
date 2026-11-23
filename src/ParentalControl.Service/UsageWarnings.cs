@@ -1,5 +1,3 @@
-using ParentalControl.Core.Models;
-
 namespace ParentalControl.Service;
 
 /// <summary>
@@ -11,13 +9,13 @@ public static class UsageWarnings
     public static readonly IReadOnlyList<int> ThresholdsMinutes = [10, 1];
 
     /// <summary>
-    /// Minutes until the user is logged off: whichever comes first, the daily limit or the end
-    /// of the schedule window. Assumes <paramref name="now"/> is inside the window.
+    /// Minutes until the user is logged off: whichever comes first, the allowed minutes for today
+    /// (daily limit plus bonus) or the end of the schedule window. Assumes <paramref name="now"/> is inside the window.
     /// </summary>
-    public static int GetRemainingMinutes(LimitConfig limit, int minutesUsed, TimeOnly now)
+    public static int GetRemainingMinutes(int allowedMinutes, int minutesUsed, TimeOnly scheduleEnd, TimeOnly now)
     {
-        var byLimit = limit.DailyMinutes - minutesUsed;
-        var byWindow = (int)Math.Ceiling((limit.ScheduleEnd.ToTimeSpan() - now.ToTimeSpan()).TotalMinutes);
+        var byLimit = allowedMinutes - minutesUsed;
+        var byWindow = (int)Math.Ceiling((scheduleEnd.ToTimeSpan() - now.ToTimeSpan()).TotalMinutes);
         return Math.Max(0, Math.Min(byLimit, byWindow));
     }
 
