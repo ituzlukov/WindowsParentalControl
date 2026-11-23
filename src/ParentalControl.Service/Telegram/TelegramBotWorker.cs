@@ -183,12 +183,12 @@ public sealed partial class TelegramBotWorker : BackgroundService
         switch (action)
         {
             case GrantBonusAction a:
-                var totalBonus = UsageRepository.AddBonusMinutes(user.Id, today, a.Minutes);
+                var grant = BonusGrant.Grant(user.Id, a.Minutes, DateTime.Now);
                 EventRepository.LogEvent(user.Sid, EventType.BONUS_GRANTED,
-                    $"+{a.Minutes} min via Telegram by {parent} (bonus today: {totalBonus} min)");
+                    $"+{a.Minutes} min via Telegram by {parent}" + GrantDetails(grant));
                 _monitor.EnforceUser(user.Sid);
                 TellUser(user.Sid, $"A parent added {a.Minutes} minutes.");
-                answer = $"+{a.Minutes} min for {user.Username}";
+                answer = $"+{a.Minutes} min for {user.Username}" + ExtendedUntil(grant);
                 break;
 
             case LockNowAction:
@@ -233,12 +233,12 @@ public sealed partial class TelegramBotWorker : BackgroundService
         string result;
         if (action.Minutes > 0)
         {
-            var totalBonus = UsageRepository.AddBonusMinutes(request.UserId, DateOnly.FromDateTime(DateTime.Now), action.Minutes);
+            var grant = BonusGrant.Grant(request.UserId, action.Minutes, DateTime.Now);
             EventRepository.LogEvent(request.UserSid, EventType.BONUS_GRANTED,
-                $"+{action.Minutes} min via Telegram by {parent}, on request (bonus today: {totalBonus} min)");
+                $"+{action.Minutes} min via Telegram by {parent}, on request" + GrantDetails(grant));
             _monitor.EnforceUser(request.UserSid);
             TellUser(request.UserSid, $"A parent added {action.Minutes} minutes.");
-            result = $"Granted +{action.Minutes} min by {parent}";
+            result = $"Granted +{action.Minutes} min by {parent}" + ExtendedUntil(grant);
         }
         else
         {
@@ -322,6 +322,13 @@ public sealed partial class TelegramBotWorker : BackgroundService
             }
         }
     }
+
+    private static string GrantDetails(BonusGrantResult grant) =>
+        $" (bonus today: {grant.TotalBonusMinutes} min)" +
+        (grant.ScheduleEndExtendedTo is { } end ? $"; allowed until {end:HH\\:mm} today" : "");
+
+    private static string ExtendedUntil(BonusGrantResult grant) =>
+        grant.ScheduleEndExtendedTo is { } end ? $", allowed until {end:HH\\:mm}" : "";
 
     private static string SenderName(JsonNode? from)
     {

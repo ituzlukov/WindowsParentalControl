@@ -28,7 +28,8 @@ public static class LimitRepository
     }
 
     /// <summary>
-    /// The limits in effect on the given date: the defaults with that weekday's override applied.
+    /// The limits in effect on the given date: the defaults with that weekday's override applied, and the
+    /// window end extended if a bonus granted that day moved it later (see <see cref="BonusGrant"/>).
     /// Null if the user has no limits.
     /// </summary>
     public static LimitConfig? GetEffective(int userId, DateOnly date)
@@ -37,7 +38,11 @@ public static class LimitRepository
         if (defaults is null) return null;
 
         var dayOverride = GetOverrides(userId).FirstOrDefault(o => o.DayOfWeek == date.DayOfWeek);
-        return defaults.WithOverride(dayOverride);
+        var effective = defaults.WithOverride(dayOverride);
+
+        var extendedEnd = UsageRepository.GetUsage(userId, date)?.ScheduleEndExtended;
+        effective.ScheduleEnd = BonusGrant.EffectiveScheduleEnd(effective.ScheduleEnd, extendedEnd);
+        return effective;
     }
 
     public static List<LimitOverride> GetOverrides(int userId)

@@ -104,6 +104,8 @@ public static class DatabaseManager
         AddColumnIfMissing(connection, "usage", "bonus_minutes", "INTEGER NOT NULL DEFAULT 0");
         // Locked by a parent for the rest of the day ("Lock now"); cleared when bonus time is granted
         AddColumnIfMissing(connection, "usage", "parent_lock", "INTEGER NOT NULL DEFAULT 0");
+        // Schedule window end extended for the day by a bonus granted near or after the end ("HH:mm"), NULL if not
+        AddColumnIfMissing(connection, "usage", "schedule_end_extended", "TEXT NULL");
     }
 
     private static void AddColumnIfMissing(SqliteConnection connection, string table, string column, string definition)

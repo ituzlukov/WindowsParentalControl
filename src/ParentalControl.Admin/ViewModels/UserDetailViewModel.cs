@@ -131,13 +131,17 @@ public partial class UserDetailViewModel : ObservableObject
 
     private void GrantBonus(int minutes)
     {
-        var today = DateOnly.FromDateTime(DateTime.Now);
-        var totalBonus = UsageRepository.AddBonusMinutes(User.Id, today, minutes);
-        EventRepository.LogEvent(User.Sid, EventType.BONUS_GRANTED, $"+{minutes} min (bonus today: {totalBonus} min)");
+        var result = BonusGrant.Grant(User.Id, minutes, DateTime.Now);
+        EventRepository.LogEvent(User.Sid, EventType.BONUS_GRANTED, BonusGrantDetails(minutes, result));
 
         User.RefreshUsage();
+        User.RefreshLimits();
         RefreshEvents();
     }
+
+    private static string BonusGrantDetails(int minutes, BonusGrantResult result) =>
+        $"+{minutes} min (bonus today: {result.TotalBonusMinutes} min)" +
+        (result.ScheduleEndExtendedTo is { } end ? $"; allowed until {end:HH\\:mm} today" : "");
 
     [RelayCommand]
     private void UnlockParentLock()

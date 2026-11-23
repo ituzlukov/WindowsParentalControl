@@ -32,7 +32,8 @@ Parental Control is a **Windows desktop application** that lets administrators e
 - Set a maximum number of minutes per day for each user (default: 120 minutes)
 - Usage is tracked in real time, accumulating every 60 seconds
 - Administrators can directly edit a user's current daily usage from the Admin UI (useful for correcting usage)
-- Extra time is granted as a bonus for today (+15 / +30 / +60 min buttons or a custom number of minutes) on top of the daily limit, so the usage shown stays the real time spent; the bonus applies to that day only and does not extend the schedule window
+- Extra time is granted as a bonus for today (+15 / +30 / +60 min buttons or a custom number of minutes) on top of the daily limit, so the usage shown stays the real time spent; the bonus applies to that day only
+- A bonus of N minutes gives the user N minutes more than they had left. If the schedule window is what stops them (e.g. in the evening with allowance to spare), the window end for that day moves by N: at 20:30 with the window ending at 21:30, +30 min means until 22:00; after the end, it counts from now. A bonus granted when the allowance is what stops the user (e.g. in the afternoon) leaves the window alone; the extension never goes past 23:59
 - Resets automatically at midnight
 
 ### Schedule Windows
@@ -349,7 +350,7 @@ The Admin UI and the Service both read/write the same SQLite database at `C:\Pro
 | `users` | Local Windows users (SID, username, restricted flag) |
 | `limits` | Per-user limit config (daily minutes, schedule start/end) |
 | `limit_overrides` | Per-user, per-weekday overrides of `limits`; `NULL` fields use the default |
-| `usage` | Daily usage records (user, date, minutes used, bonus minutes granted for the day, locked by parent) |
+| `usage` | Daily usage records (user, date, minutes used, bonus minutes granted for the day, locked by parent, schedule window end extended by a bonus) |
 | `events` | Audit log of all enforcement events |
 | `settings` | Application settings as key/value pairs (Telegram bot token, paired chats) |
 
