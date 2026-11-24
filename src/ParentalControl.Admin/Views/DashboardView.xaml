@@ -30,7 +30,7 @@
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <md:Card Width="200" Margin="8" Padding="0"
+                        <md:Card Width="280" Margin="8" Padding="0"
                                  md:ElevationAssist.Elevation="Dp2"
                                  Cursor="Hand">
                             <Button Command="{Binding DataContext.NavigateToUserCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
@@ -46,13 +46,16 @@
                                     <TextBlock Text="{Binding Username}"
                                                FontSize="16" FontWeight="Bold"
                                                HorizontalAlignment="Center" />
-                                    <!-- Body text color, not the button's primary color: readable in light and dark themes -->
-                                    <TextBlock Text="{Binding LimitSummary}"
-                                               FontSize="12" Opacity="0.8"
+                                    <!-- Body text color, not the button's primary color: readable in light and dark themes.
+                                         Usage, then the real time remaining in semi-bold, on one line -->
+                                    <TextBlock FontSize="12"
                                                Foreground="{DynamicResource MaterialDesign.Brush.Foreground}"
                                                HorizontalAlignment="Center"
                                                TextWrapping="Wrap"
-                                               TextAlignment="Center" Margin="0,4,0,0" />
+                                               TextAlignment="Center" Margin="0,4,0,0">
+                                        <Run Text="{Binding LimitSummary, Mode=OneWay}" />
+                                        <Run Text="{Binding RemainingSummary, Mode=OneWay}" FontWeight="SemiBold" />
+                                    </TextBlock>
                                     <TextBlock Text="{Binding ScheduleSummary}"
                                                FontSize="12" Opacity="0.8"
                                                Foreground="{DynamicResource MaterialDesign.Brush.Foreground}"
@@ -84,7 +87,7 @@
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate>
-                        <md:Card Width="200" Margin="8" Padding="16"
+                        <md:Card Width="280" Margin="8" Padding="16"
                                  md:ElevationAssist.Elevation="Dp1"
                                  IsHitTestVisible="False">
                             <!-- Muted (not clickable) but readable in light and dark themes -->

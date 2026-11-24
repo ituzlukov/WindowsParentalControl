@@ -25,55 +25,96 @@ public partial class UserRow : ObservableObject
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(LimitSummary))]
+    [NotifyPropertyChangedFor(nameof(RemainingSummary))]
     [NotifyPropertyChangedFor(nameof(UsageSummary))]
     private int? _dailyMinutes;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ScheduleSummary))]
+    [NotifyPropertyChangedFor(nameof(TodayHours))]
+    [NotifyPropertyChangedFor(nameof(UsageSummary))]
+    [NotifyPropertyChangedFor(nameof(LimitSummary))]
+    [NotifyPropertyChangedFor(nameof(RemainingSummary))]
     private string? _scheduleStart;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ScheduleSummary))]
+    [NotifyPropertyChangedFor(nameof(TodayHours))]
+    [NotifyPropertyChangedFor(nameof(UsageSummary))]
+    [NotifyPropertyChangedFor(nameof(LimitSummary))]
+    [NotifyPropertyChangedFor(nameof(RemainingSummary))]
     private string? _scheduleEnd;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(LimitSummary))]
+    [NotifyPropertyChangedFor(nameof(RemainingSummary))]
     [NotifyPropertyChangedFor(nameof(UsageSummary))]
     private int _todayMinutesUsed;
 
     /// <summary>Extra minutes granted for today on top of the daily limit.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(LimitSummary))]
+    [NotifyPropertyChangedFor(nameof(RemainingSummary))]
     [NotifyPropertyChangedFor(nameof(UsageSummary))]
     private int _todayBonusMinutes;
 
     /// <summary>A parent locked the user for the rest of today ("Lock now" in Telegram).</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(LimitSummary))]
+    [NotifyPropertyChangedFor(nameof(RemainingSummary))]
     private bool _todayParentLocked;
 
+    /// <summary>Dashboard card: today's usage against today's allowance, e.g. "1h 10min of 3h used".</summary>
     public string LimitSummary
     {
         get
         {
             if (!DailyMinutes.HasValue) return "No limits";
-            if (TodayParentLocked) return "Locked by parent for today";
             var total = DailyMinutes.Value + TodayBonusMinutes;
-            var remaining = Math.Max(0, total - TodayMinutesUsed);
-            return $"{FormatMinutes(total)} today ({FormatMinutes(remaining)} remaining)";
+            return $"{FormatMinutes(TodayMinutesUsed)} of {FormatMinutes(total)} used";
         }
     }
 
-    /// <summary>Today's usage against today's allowance (daily limit plus bonus), e.g. "60 min of 180 (120 remaining)".</summary>
+    /// <summary>
+    /// Dashboard card, after <see cref="LimitSummary"/> on the same line: the real time remaining today
+    /// (see <see cref="RemainingTime"/>), or the parent lock. Empty if the user has no limits.
+    /// </summary>
+    public string RemainingSummary
+    {
+        get
+        {
+            if (!DailyMinutes.HasValue) return "";
+            if (TodayParentLocked) return " · locked by parent";
+            return $" · {FormatMinutes(RemainingNow(DailyMinutes.Value + TodayBonusMinutes))} remaining";
+        }
+    }
+
+    /// <summary>
+    /// Today's usage against today's allowance (daily limit plus bonus) and what is really left, which can be
+    /// less than the allowance if the schedule window ends first, e.g. "60 min of 180 (60 remaining)" at 20:30.
+    /// Computed when the user's data is loaded or refreshed.
+    /// </summary>
     public string UsageSummary
     {
         get
         {
             if (!DailyMinutes.HasValue) return $"{TodayMinutesUsed} min (no limit)";
             var total = DailyMinutes.Value + TodayBonusMinutes;
-            var remaining = Math.Max(0, total - TodayMinutesUsed);
-            return $"{TodayMinutesUsed} min of {total} ({remaining} remaining)";
+            return $"{TodayMinutesUsed} min of {total} ({RemainingNow(total)} remaining)";
         }
+    }
+
+    /// <summary>The smaller of the allowance left and the schedule window left (see <see cref="RemainingTime"/>).</summary>
+    private int RemainingNow(int allowedMinutes)
+    {
+        if (ScheduleStart is null || ScheduleEnd is null ||
+            !TimeOnly.TryParseExact(ScheduleStart, "HH:mm", out var start) ||
+            !TimeOnly.TryParseExact(ScheduleEnd, "HH:mm", out var end))
+        {
+            return Math.Max(0, allowedMinutes - TodayMinutesUsed);
+        }
+
+        return RemainingTime.Minutes(allowedMinutes, TodayMinutesUsed, start, end, TimeOnly.FromDateTime(DateTime.Now));
     }
 
     public string ScheduleSummary
@@ -81,10 +122,14 @@ public partial class UserRow : ObservableObject
         get
         {
             if (ScheduleStart is not null && ScheduleEnd is not null)
-                return $"{ScheduleStart} - {ScheduleEnd} today";
+                return $"{ScheduleStart} – {ScheduleEnd} today";
             return "No schedule";
         }
     }
+
+    /// <summary>Today's allowed hours, e.g. "07:00 – 21:45" (weekday schedule, extended if a bonus moved the end).</summary>
+    public string TodayHours =>
+        ScheduleStart is not null && ScheduleEnd is not null ? $"{ScheduleStart} – {ScheduleEnd}" : "No schedule";
 
     private static string FormatMinutes(int minutes)
     {
