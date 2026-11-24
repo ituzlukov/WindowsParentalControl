@@ -61,7 +61,7 @@ public class BotUiTests
     }
 
     [Fact]
-    public void Status_ActiveSession_ShowsUsageAndTimeLeft()
+    public void Status_ActiveSession_ShowsUsageAndTimeRemaining()
     {
         var usage = new UsageRecord { MinutesUsed = 130, BonusMinutes = 30 };
 
@@ -69,7 +69,7 @@ public class BotUiTests
 
         Assert.Equal(
             "Roma\n" +
-            "Used 2h 10min of 3h 30min (incl. 30min bonus), 1h 20min left\n" +
+            "Used 2h 10min of 3h 30min (incl. 30min bonus), 1h 20min remaining\n" +
             "Allowed hours today: 07:00-21:00\n" +
             "Session: active",
             text);
@@ -83,7 +83,7 @@ public class BotUiTests
 
         var text = BotUi.FormatStatus("Roma", Limit, usage, SessionState.LockedOut, lockedOutAt, lockedOutAt.AddMinutes(2));
 
-        Assert.Contains("0min left", text);
+        Assert.Contains("0min remaining", text);
         Assert.Contains("Session: locked out since 18:00, logoff at 18:15 unless you add time", text);
     }
 

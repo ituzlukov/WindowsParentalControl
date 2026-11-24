@@ -72,7 +72,7 @@ public static class BotUi
         var bonusText = bonus > 0 ? $" (incl. {FormatMinutes(bonus)} bonus)" : "";
         var leftText = !inWindow
             ? "outside allowed hours"
-            : $"{FormatMinutes(UsageWarnings.GetRemainingMinutes(allowed, used, limit.ScheduleEnd, time))} left";
+            : $"{FormatMinutes(UsageWarnings.GetRemainingMinutes(allowed, used, limit.ScheduleEnd, time))} remaining";
         lines.Add($"Used {FormatMinutes(used)} of {FormatMinutes(allowed)}{bonusText}, {leftText}");
         lines.Add($"Allowed hours today: {limit.ScheduleStart:HH\\:mm}-{limit.ScheduleEnd:HH\\:mm}");
 

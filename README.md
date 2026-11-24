@@ -70,7 +70,7 @@ Parental Control is a **Windows desktop application** that lets administrators e
 Check the status and grant time from your phone, also when you are away from home.
 - Create a bot with [@BotFather](https://t.me/BotFather) (`/newbot`), then in the Admin UI open **Telegram**, paste the token and press **Save**
 - Press **Generate pairing code** and send `/start <code>` to your bot within 10 minutes; repeat for each parent. The bot answers only paired chats; five wrong codes invalidate the current one
-- `/status` shows, per restricted user: time used and left, today's allowed hours, the session state (active, screen locked, locked out), with buttons **+15 / +30 / +60 min** and **Lock now** / **Unlock**
+- `/status` shows, per restricted user: time used and remaining, today's allowed hours, the session state (active, screen locked, locked out), with buttons **+15 / +30 / +60 min** and **Lock now** / **Unlock**
 - When a session is locked out because time is up, you get a message with the same buttons; adding time lets the child continue where they left off
 - **Lock now** locks the user out for the rest of the day (logged off after 15 minutes like any lockout); granting bonus time or **Unlock** lifts it
 - The child can ask for more time: the 10- and 1-minute warnings, and the message shown when signing back in while out of time, ask "Ask a parent for more time?" (Yes/No). On Yes, the parents get the request with **+15 / +30 / +60 / No**; the first answer wins and the child gets a message. At most 3 requests a day by default (Admin UI → Telegram, 0 turns requests off), one at a time
