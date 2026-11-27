@@ -7,6 +7,7 @@
 #define MyAppExeName   "ParentalControl.Admin.exe"
 #define ServiceExeName "ParentalControl.Service.exe"
 #define ServiceName    "ParentalControl.Service"
+#define NotifyExeName  "ParentalControl.Notify.exe"
 
 [Setup]
 AppId={{A1B2C3D4-E5F6-7890-ABCD-EF1234567890}
@@ -40,6 +41,9 @@ Source: "..\publish\service\*"; DestDir: "{app}\service"; Flags: ignoreversion r
 ; Admin app files
 Source: "..\publish\admin\*"; DestDir: "{app}\admin"; Flags: ignoreversion recursesubdirs createallsubdirs
 
+; The window with the child's messages, started by the service in the child's session
+Source: "..\publish\notify\*"; DestDir: "{app}\notify"; Flags: ignoreversion recursesubdirs createallsubdirs
+
 [InstallDelete]
 ; Shortcuts used to be created for all users, so restricted users saw them too; remove them on upgrade
 Type: files; Name: "{commondesktop}\{#MyAppName}.lnk"
@@ -48,6 +52,7 @@ Type: filesandordirs; Name: "{commonprograms}\{#MyAppName}"
 ; no stale runtime files are left next to the framework-dependent build. The service is stopped by then.
 Type: filesandordirs; Name: "{app}\service"
 Type: filesandordirs; Name: "{app}\admin"
+Type: filesandordirs; Name: "{app}\notify"
 
 [Icons]
 ; Shortcuts only for the administrator running the installer, not for all users
@@ -62,6 +67,8 @@ Filename: "sc"; Parameters: "stop {#ServiceName}"; \
     RunOnceId: "StopService"; Flags: runhidden waituntilterminated
 Filename: "sc"; Parameters: "delete {#ServiceName}"; \
     RunOnceId: "DeleteService"; Flags: runhidden waituntilterminated
+Filename: "taskkill"; Parameters: "/F /IM {#NotifyExeName}"; \
+    RunOnceId: "CloseNotify"; Flags: runhidden waituntilterminated
 
 [UninstallDelete]
 ; Remove desktop shortcuts (per-user now, all-users from older versions)
@@ -176,6 +183,14 @@ begin
     Sleep(1000);
 end;
 
+// A message window may be open in a user's session; close it so its files are not locked
+procedure CloseNotifyWindows();
+var
+    ResultCode: Integer;
+begin
+    Exec('taskkill', '/F /IM {#NotifyExeName}', '', SW_HIDE, ewWaitUntilTerminated, ResultCode);
+end;
+
 procedure CreateService();
 var
     ResultCode: Integer;
@@ -245,6 +260,7 @@ begin
         // Before files are copied: stop existing service so files are not locked
         if ServiceExists() then
             StopAndDeleteService();
+        CloseNotifyWindows();
     end
     else if CurStep = ssPostInstall then
     begin

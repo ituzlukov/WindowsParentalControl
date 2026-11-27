@@ -38,10 +38,4 @@ public static class LockoutPolicy
         if (now - lockedOutAt.Value >= GracePeriod) return LockoutAction.Logoff;
         return isPaused ? LockoutAction.None : LockoutAction.RelockAfterNotice;
     }
-
-    public static (string Title, string Message) BuildRelockMessage() =>
-        ("Parental Control",
-            "Your computer time is over.\n\n" +
-            "The session will be locked again. Your programs stay open until a parent adds time; " +
-            $"after {GracePeriod.TotalMinutes:0} minutes you will be logged off.");
 }

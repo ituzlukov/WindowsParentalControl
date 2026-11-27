@@ -1,0 +1,16 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <OutputType>WinExe</OutputType>
+    <UseWPF>true</UseWPF>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <ApplicationIcon>..\..\icon.ico</ApplicationIcon>
+  </PropertyGroup>
+  <ItemGroup>
+    <Resource Include="..\..\icon.ico" Link="icon.ico" />
+    <!-- The same message texts as the service, compiled in directly instead of referencing Core,
+         so the output is just this small app -->
+    <Compile Include="..\ParentalControl.Core\ChildMessages.cs" Link="Shared\ChildMessages.cs" />
+  </ItemGroup>
+</Project>

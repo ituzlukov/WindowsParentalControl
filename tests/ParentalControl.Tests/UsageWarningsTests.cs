@@ -128,15 +128,4 @@ public class UsageWarningsTests
         Assert.Null(warn);
         Assert.Null(state);
     }
-
-    [Fact]
-    public void Message_ShowsRemainingMinutes()
-    {
-        var (title, one) = UsageWarnings.BuildMessage(1);
-        var (_, ten) = UsageWarnings.BuildMessage(10);
-
-        Assert.Equal("Parental Control", title);
-        Assert.Contains("1 minute.", one);
-        Assert.Contains("10 minutes.", ten);
-    }
 }

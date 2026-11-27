@@ -54,7 +54,8 @@ Parental Control is a **Windows desktop application** that lets administrators e
 - Login attempts are blocked if the user has already exhausted their daily limit or is outside their schedule
 
 ### Logoff Warnings
-- A restricted user gets a message box 10 minutes and 1 minute before the session is locked, whichever comes first: the daily limit or the end of the schedule window
+- A restricted user gets a message 10 minutes and 1 minute before the session is locked, whichever comes first: the daily limit or the end of the schedule window
+- Messages to the child are shown in a window with large text, on top of other windows, in the system light or dark theme (`ParentalControl.Notify.exe`, started by the service in the child's session). If it cannot be started, a standard system message box is shown instead. A newer message replaces an older one still open
 - Each warning is shown once per session; if extra time is granted, the warnings are shown again when the new deadline approaches
 - No warnings in a locked or disconnected session; a pending warning is shown after the session resumes
 - The message never blocks the service
@@ -280,6 +281,16 @@ dotnet run --project src/ParentalControl.Service
 dotnet test tests/ParentalControl.Tests
 ```
 
+### Previewing the Child's Messages
+
+To see every message the child can get (the 10- and 1-minute warnings, the notice on signing back in while out of time, "A parent added N minutes", "A parent took away N minutes"), run `ParentalControl.Notify.exe` without arguments: double-click it in `publish\notify` (or in `C:\Program Files\Parental Control\notify` once installed), or:
+
+```powershell
+.\publish\notify\ParentalControl.Notify.exe
+```
+
+The messages are shown one after another in the same window the child gets; close each one to see the next. Nothing is locked, the database is not touched, and an installed service keeps running.
+
 ### Building the Installer
 
 The `build.ps1` script publishes both projects as framework-dependent win-x64 binaries (about 20 MB in total; the .NET runtime is not copied into them) and then invokes Inno Setup to create the installer:
@@ -305,6 +316,7 @@ powershell.exe -ExecutionPolicy Bypass -File .\build.ps1
 The build produces:
 - `publish/service/` — Service binaries (framework-dependent)
 - `publish/admin/` — Admin UI binaries (framework-dependent)
+- `publish/notify/` — The window with the child's messages (framework-dependent)
 - `installer/Output/ParentalControlSetup.exe` — The installer
 
 ### Installing

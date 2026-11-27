@@ -40,12 +40,4 @@ public static class UsageWarnings
         if (lastWarnedThreshold is null || crossed < lastWarnedThreshold) return (crossed, crossed);
         return (null, crossed);
     }
-
-    public static (string Title, string Message) BuildMessage(int remainingMinutes)
-    {
-        var unit = remainingMinutes == 1 ? "minute" : "minutes";
-        return ("Parental Control",
-            $"Your computer time ends in {remainingMinutes} {unit}.\n\n" +
-            "Save your work: the session will be locked.");
-    }
 }

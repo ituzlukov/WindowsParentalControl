@@ -1,5 +1,6 @@
 using System.Text.Json.Nodes;
 using System.Text.RegularExpressions;
+using ParentalControl.Core;
 using ParentalControl.Core.Data;
 using ParentalControl.Core.Models;
 using ParentalControl.Core.Platform;
@@ -179,7 +180,7 @@ public sealed partial class TelegramBotWorker : BackgroundService
                 EventRepository.LogEvent(user.Sid, EventType.BONUS_GRANTED,
                     $"+{a.Minutes} min via Telegram by {parent}" + GrantDetails(grant));
                 _monitor.EnforceUser(user.Sid);
-                TellUser(user.Sid, $"A parent added {a.Minutes} minutes.");
+                TellUser(user.Sid, ChildMessage.TimeAdded(a.Minutes));
                 answer = $"+{a.Minutes} min for {user.Username}" + ExtendedUntil(grant);
                 break;
 
@@ -192,7 +193,7 @@ public sealed partial class TelegramBotWorker : BackgroundService
                 }
                 EventRepository.LogEvent(user.Sid, EventType.TIME_TAKEN, $"-{taken} min via Telegram by {parent}");
                 _monitor.EnforceUser(user.Sid);
-                TellUser(user.Sid, $"A parent took away {taken} minutes.");
+                TellUser(user.Sid, ChildMessage.TimeTaken(taken));
                 answer = $"-{taken} min for {user.Username}";
                 break;
 
@@ -272,13 +273,13 @@ public sealed partial class TelegramBotWorker : BackgroundService
     }
 
     /// <summary>Shows a message in the user's active (not locked, connected) sessions.</summary>
-    private void TellUser(string userSid, string message)
+    private void TellUser(string userSid, ChildMessage text)
     {
         foreach (var session in _sessionTracker.ActiveSessions.Values)
         {
             if (session.UserSid == userSid && !session.IsPaused)
             {
-                SessionManager.SendMessage(session.SessionId, "Parental Control", message);
+                ChildNotifier.Show(session.SessionId, text, _logger);
             }
         }
     }

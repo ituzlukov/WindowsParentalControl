@@ -56,6 +56,16 @@ dotnet publish "$srcDir\ParentalControl.Admin\ParentalControl.Admin.csproj" `
 
 if ($LASTEXITCODE -ne 0) { Write-Error "Admin publish failed."; exit 1 }
 
+# Publish Notify (the window with the child's messages; run it without arguments to preview them)
+Write-Host "`n=== Publishing ParentalControl.Notify ===" -ForegroundColor Cyan
+dotnet publish "$srcDir\ParentalControl.Notify\ParentalControl.Notify.csproj" `
+    --configuration $Configuration `
+    --runtime win-x64 `
+    --self-contained false `
+    --output "$publishDir\notify"
+
+if ($LASTEXITCODE -ne 0) { Write-Error "Notify publish failed."; exit 1 }
+
 # Build Installer
 Write-Host "`n=== Building Installer ===" -ForegroundColor Cyan
 & $InnoSetupPath $issFile

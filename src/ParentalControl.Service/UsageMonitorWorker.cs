@@ -1,5 +1,5 @@
 using System.Collections.Concurrent;
-using System.Runtime.InteropServices;
+using ParentalControl.Core;
 using ParentalControl.Core.Data;
 using ParentalControl.Core.Models;
 using ParentalControl.Core.Platform;
@@ -202,8 +202,7 @@ public sealed class UsageMonitorWorker : BackgroundService
         _logger.Information("{Username} signed back in while locked out ({Reason}); locking again", session.Username, reason);
         EventRepository.LogEvent(session.UserSid, EventType.LOCKED_OUT, $"{reason}; signed back in, locked again");
 
-        var (title, message) = LockoutPolicy.BuildRelockMessage();
-        SessionManager.SendMessage(sessionId, title, message);
+        ChildNotifier.Show(sessionId, ChildMessage.TimeIsOver(LockoutPolicy.GracePeriod), _logger);
 
         Task.Run(async () =>
         {
@@ -244,12 +243,7 @@ public sealed class UsageMonitorWorker : BackgroundService
         _logger.Information("Logoff warning sent to {Username}: {Remaining} min remaining", session.Username, remaining);
         EventRepository.LogEvent(session.UserSid, EventType.WARNING_SENT, $"{remaining} min remaining");
 
-        var (title, message) = UsageWarnings.BuildMessage(remaining);
-        if (!SessionManager.SendMessage(sessionId, title, message))
-        {
-            _logger.Warning("Failed to send logoff warning to {Username} (session {SessionId}), Win32 error {Error}",
-                session.Username, sessionId, Marshal.GetLastPInvokeError());
-        }
+        ChildNotifier.Show(sessionId, ChildMessage.TimeEndsSoon(remaining), _logger);
     }
 
     private void RunCleanupIfNeeded()
