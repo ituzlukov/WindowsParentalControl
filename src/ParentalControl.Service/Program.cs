@@ -13,7 +13,6 @@ var builder = Host.CreateApplicationBuilder(args);
 builder.Services.AddSingleton(logger);
 builder.Services.AddSingleton<SessionTracker>();
 builder.Services.AddSingleton<TelegramNotifier>();
-builder.Services.AddSingleton<TimeRequestService>();
 // Singleton as well as hosted service: the Telegram bot asks it to enforce limits right away
 builder.Services.AddSingleton<UsageMonitorWorker>();
 builder.Services.AddHostedService(sp => sp.GetRequiredService<UsageMonitorWorker>());

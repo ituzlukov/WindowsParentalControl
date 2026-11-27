@@ -44,26 +44,6 @@ public static class SessionManager
             false);
     }
 
-    /// <summary>
-    /// Asks a Yes/No question in the user's session and waits for the answer (blocking, call it off the
-    /// service threads). Returns true only if the user pressed Yes before <paramref name="timeout"/>.
-    /// </summary>
-    public static bool AskYesNo(int sessionId, string title, string message, TimeSpan timeout)
-    {
-        var sent = NativeMethods.WTSSendMessageW(
-            NativeMethods.WTS_CURRENT_SERVER_HANDLE,
-            sessionId,
-            title,
-            title.Length * sizeof(char),
-            message,
-            message.Length * sizeof(char),
-            NativeMethods.MB_YESNO | NativeMethods.MB_ICONQUESTION | NativeMethods.MB_SETFOREGROUND | NativeMethods.MB_TOPMOST,
-            (int)timeout.TotalSeconds,
-            out var response,
-            true);
-        return sent && response == NativeMethods.IDYES;
-    }
-
     public static string? GetSessionUsername(int sessionId)
     {
         if (!NativeMethods.WTSQuerySessionInformationW(

@@ -67,20 +67,6 @@ public static class EventRepository
         return events;
     }
 
-    public static int CountEvents(string userSid, EventType eventType, DateTime from)
-    {
-        using var connection = DatabaseManager.CreateConnection();
-        using var cmd = connection.CreateCommand();
-        cmd.CommandText = """
-            SELECT COUNT(*) FROM events
-            WHERE user_sid = @userSid AND event_type = @eventType AND timestamp >= @from
-            """;
-        cmd.Parameters.AddWithValue("@userSid", userSid);
-        cmd.Parameters.AddWithValue("@eventType", eventType.ToString());
-        cmd.Parameters.AddWithValue("@from", from.ToString("yyyy-MM-ddTHH:mm:ss.fff"));
-        return Convert.ToInt32(cmd.ExecuteScalar());
-    }
-
     /// <summary>
     /// Keeps only the newest <paramref name="maxCount"/> events. A safety net on top of the age-based
     /// retention, in case frequent logins, lock/unlock or denied logins flood the log.

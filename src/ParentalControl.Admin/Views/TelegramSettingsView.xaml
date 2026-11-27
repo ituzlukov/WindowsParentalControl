@@ -112,31 +112,6 @@
                     </StackPanel>
                 </md:Card>
 
-                <!-- ═══ Child requests ═══ -->
-                <md:ColorZone Mode="PrimaryMid" Padding="8,6" CornerRadius="4" Margin="0,0,0,8">
-                    <TextBlock Text="Requests for More Time"
-                               FontSize="14" FontWeight="DemiBold"
-                               Foreground="{DynamicResource MaterialDesign.Brush.Primary.Foreground}" />
-                </md:ColorZone>
-
-                <md:Card Padding="20" Margin="0,0,0,24" md:ElevationAssist.Elevation="Dp2">
-                    <StackPanel>
-                        <TextBlock TextWrapping="Wrap" Opacity="0.7" Margin="0,0,0,12"
-                                   Text="When time is running out or is up, the child can ask for more time; you get the request in Telegram with +15 / +30 / +60 / No buttons. 0 turns requests off." />
-                        <StackPanel Orientation="Horizontal">
-                            <TextBox Width="200"
-                                     md:HintAssist.Hint="Requests per day"
-                                     md:HintAssist.IsFloating="True"
-                                     Text="{Binding MaxRequestsPerDay, UpdateSourceTrigger=PropertyChanged, TargetNullValue=''}"
-                                     Style="{StaticResource MaterialDesignOutlinedTextBox}" />
-                            <Button Content="Save"
-                                    Command="{Binding SaveMaxRequestsCommand}"
-                                    Style="{StaticResource MaterialDesignPaperButton}"
-                                    Padding="24,8" Margin="12,0,0,0" VerticalAlignment="Center" />
-                        </StackPanel>
-                    </StackPanel>
-                </md:Card>
-
             </StackPanel>
         </ScrollViewer>
     </DockPanel>

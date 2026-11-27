@@ -17,9 +17,7 @@ public class BotUiTests
     {
         new GrantBonusAction(3, 30),
         new LockNowAction(3),
-        new UnlockAction(12),
-        new AnswerRequestAction(7, 15),
-        new AnswerRequestAction(7, 0)
+        new UnlockAction(12)
     };
 
     [Theory]
@@ -42,7 +40,7 @@ public class BotUiTests
     [InlineData("b:1:999")]
     [InlineData("l:abc")]
     [InlineData("l:1:2")]
-    [InlineData("r:1")]
+    [InlineData("r:1:15")]
     public void InvalidCallbackData_Rejected(string? data)
     {
         Assert.Null(BotUi.Parse(data));

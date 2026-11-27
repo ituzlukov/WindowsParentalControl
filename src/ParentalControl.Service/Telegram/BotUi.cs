@@ -9,15 +9,13 @@ public abstract record BotAction;
 public sealed record GrantBonusAction(int UserId, int Minutes) : BotAction;
 public sealed record LockNowAction(int UserId) : BotAction;
 public sealed record UnlockAction(int UserId) : BotAction;
-/// <summary>Answer to a child's request for more time; 0 minutes means "no".</summary>
-public sealed record AnswerRequestAction(int RequestId, int Minutes) : BotAction;
 
 /// <summary>Where the user's session is, as shown in the status.</summary>
 public enum SessionState { NotSignedIn, Active, ScreenLocked, SwitchedAway, LockedOut }
 
 /// <summary>
 /// Texts and inline keyboards of the bot, and the compact callback data of its buttons
-/// (Telegram allows at most 64 bytes): "b:{userId}:{minutes}", "l:{userId}", "u:{userId}", "r:{requestId}:{minutes}".
+/// (Telegram allows at most 64 bytes): "b:{userId}:{minutes}", "l:{userId}", "u:{userId}".
 /// </summary>
 public static class BotUi
 {
@@ -28,7 +26,6 @@ public static class BotUi
         GrantBonusAction a => $"b:{a.UserId}:{a.Minutes}",
         LockNowAction a => $"l:{a.UserId}",
         UnlockAction a => $"u:{a.UserId}",
-        AnswerRequestAction a => $"r:{a.RequestId}:{a.Minutes}",
         _ => throw new ArgumentOutOfRangeException(nameof(action))
     };
 
@@ -44,7 +41,6 @@ public static class BotUi
             ("b", 2) when numbers[1] > 0 && numbers[1] <= 240 => new GrantBonusAction(numbers[0], numbers[1]),
             ("l", 1) => new LockNowAction(numbers[0]),
             ("u", 1) => new UnlockAction(numbers[0]),
-            ("r", 2) when numbers[1] <= 240 => new AnswerRequestAction(numbers[0], numbers[1]),
             _ => null
         };
     }

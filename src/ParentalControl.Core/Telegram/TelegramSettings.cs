@@ -18,22 +18,14 @@ public static class TelegramSettings
     private const string KeyPairedChats = "telegram.paired_chats";
     private const string KeyPairingCode = "telegram.pairing_code";
     private const string KeyPairingExpires = "telegram.pairing_expires_utc";
-    private const string KeyMaxRequestsPerDay = "telegram.max_requests_per_day";
     private const string KeyUpdateOffset = "telegram.update_offset";
 
-    public const int DefaultMaxRequestsPerDay = 3;
     public static readonly TimeSpan PairingCodeLifetime = TimeSpan.FromMinutes(10);
 
     public static string? BotToken
     {
         get => SettingsRepository.Get(KeyBotToken);
         set => SettingsRepository.Set(KeyBotToken, string.IsNullOrWhiteSpace(value) ? null : value.Trim());
-    }
-
-    public static int MaxRequestsPerDay
-    {
-        get => int.TryParse(SettingsRepository.Get(KeyMaxRequestsPerDay), out var v) ? v : DefaultMaxRequestsPerDay;
-        set => SettingsRepository.Set(KeyMaxRequestsPerDay, Math.Max(0, value).ToString(CultureInfo.InvariantCulture));
     }
 
     /// <summary>Last processed Telegram update id + 1, so updates are not handled twice after a restart.</summary>

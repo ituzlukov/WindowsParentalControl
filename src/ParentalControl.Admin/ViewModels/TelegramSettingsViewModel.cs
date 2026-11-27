@@ -7,8 +7,8 @@ using ParentalControl.Core.Telegram;
 namespace ParentalControl.Admin.ViewModels;
 
 /// <summary>
-/// Telegram bot settings: bot token, pairing parents' chats with a one-time code, and the daily cap
-/// on the child's requests for more time. The bot itself runs in the service.
+/// Telegram bot settings: bot token and pairing parents' chats with a one-time code.
+/// The bot itself runs in the service.
 /// </summary>
 public partial class TelegramSettingsViewModel : ObservableObject
 {
@@ -23,9 +23,6 @@ public partial class TelegramSettingsViewModel : ObservableObject
     [ObservableProperty]
     private string _pairingInstructions = string.Empty;
 
-    [ObservableProperty]
-    private int? _maxRequestsPerDay;
-
     public ObservableCollection<PairedChat> PairedChats { get; } = [];
 
     public TelegramSettingsViewModel(Action navigateBack)
@@ -36,7 +33,6 @@ public partial class TelegramSettingsViewModel : ObservableObject
     public void Load()
     {
         BotToken = TelegramSettings.BotToken ?? string.Empty;
-        MaxRequestsPerDay = TelegramSettings.MaxRequestsPerDay;
         RefreshChats();
         _ = LoadBotUsernameAsync(showErrors: false);
     }
@@ -91,20 +87,6 @@ public partial class TelegramSettingsViewModel : ObservableObject
 
         TelegramSettings.RemovePairedChat(chat.ChatId);
         RefreshChats();
-    }
-
-    [RelayCommand]
-    private void SaveMaxRequests()
-    {
-        var value = MaxRequestsPerDay ?? 0;
-        if (value is < 0 or > 50)
-        {
-            MessageBox.Show("Requests per day must be between 0 and 50 (0 = the child cannot ask).",
-                "Validation Error", MessageBoxButton.OK, MessageBoxImage.Warning);
-            return;
-        }
-        TelegramSettings.MaxRequestsPerDay = value;
-        MaxRequestsPerDay = value;
     }
 
     [RelayCommand]
