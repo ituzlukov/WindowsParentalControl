@@ -64,9 +64,9 @@ public static class UsageRepository
         // "HH:mm" strings compare in time order
         cmd.CommandText = """
             INSERT INTO usage (user_id, date, minutes_used, bonus_minutes, parent_lock, schedule_end_extended)
-            VALUES (@userId, @date, 0, MAX(0, @minutes), 0, @extendTo)
+            VALUES (@userId, @date, 0, @minutes, 0, @extendTo)
             ON CONFLICT(user_id, date) DO UPDATE SET
-                bonus_minutes = MAX(0, bonus_minutes + @minutes),
+                bonus_minutes = bonus_minutes + @minutes,
                 parent_lock = 0,
                 schedule_end_extended = CASE
                     WHEN @extendTo IS NULL THEN schedule_end_extended
@@ -79,6 +79,28 @@ public static class UsageRepository
         cmd.Parameters.AddWithValue("@date", date.ToString("yyyy-MM-dd"));
         cmd.Parameters.AddWithValue("@minutes", minutes);
         cmd.Parameters.AddWithValue("@extendTo", (object?)extendScheduleEndTo?.ToString("HH\\:mm") ?? DBNull.Value);
+        return Convert.ToInt32(cmd.ExecuteScalar());
+    }
+
+    /// <summary>
+    /// Takes minutes away from the day's allowance (the bonus goes negative if needed); the parent lock and
+    /// the window are left as they are. Use <see cref="BonusGrant.Take"/> rather than calling this directly.
+    /// Returns the day's bonus after the change.
+    /// </summary>
+    public static int TakeMinutes(int userId, DateOnly date, int minutes)
+    {
+        using var connection = DatabaseManager.CreateConnection();
+        using var cmd = connection.CreateCommand();
+        cmd.CommandText = """
+            INSERT INTO usage (user_id, date, minutes_used, bonus_minutes, parent_lock)
+            VALUES (@userId, @date, 0, -@minutes, 0)
+            ON CONFLICT(user_id, date) DO UPDATE SET
+                bonus_minutes = bonus_minutes - @minutes
+            RETURNING bonus_minutes
+            """;
+        cmd.Parameters.AddWithValue("@userId", userId);
+        cmd.Parameters.AddWithValue("@date", date.ToString("yyyy-MM-dd"));
+        cmd.Parameters.AddWithValue("@minutes", minutes);
         return Convert.ToInt32(cmd.ExecuteScalar());
     }
 

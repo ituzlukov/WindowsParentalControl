@@ -161,6 +161,7 @@ public sealed partial class TelegramBotWorker : BackgroundService
             GrantBonusAction a => UserRepository.GetById(a.UserId),
             LockNowAction a => UserRepository.GetById(a.UserId),
             UnlockAction a => UserRepository.GetById(a.UserId),
+            TakeTimeAction a => UserRepository.GetById(a.UserId),
             _ => null
         };
         if (user is null)
@@ -180,6 +181,19 @@ public sealed partial class TelegramBotWorker : BackgroundService
                 _monitor.EnforceUser(user.Sid);
                 TellUser(user.Sid, $"A parent added {a.Minutes} minutes.");
                 answer = $"+{a.Minutes} min for {user.Username}" + ExtendedUntil(grant);
+                break;
+
+            case TakeTimeAction a:
+                var taken = BonusGrant.Take(user.Id, a.Minutes, DateTime.Now);
+                if (taken == 0)
+                {
+                    answer = $"{user.Username} has no time left to take";
+                    break;
+                }
+                EventRepository.LogEvent(user.Sid, EventType.TIME_TAKEN, $"-{taken} min via Telegram by {parent}");
+                _monitor.EnforceUser(user.Sid);
+                TellUser(user.Sid, $"A parent took away {taken} minutes.");
+                answer = $"-{taken} min for {user.Username}";
                 break;
 
             case LockNowAction:

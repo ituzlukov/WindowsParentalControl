@@ -9,13 +9,14 @@ public abstract record BotAction;
 public sealed record GrantBonusAction(int UserId, int Minutes) : BotAction;
 public sealed record LockNowAction(int UserId) : BotAction;
 public sealed record UnlockAction(int UserId) : BotAction;
+public sealed record TakeTimeAction(int UserId, int Minutes) : BotAction;
 
 /// <summary>Where the user's session is, as shown in the status.</summary>
 public enum SessionState { NotSignedIn, Active, ScreenLocked, SwitchedAway, LockedOut }
 
 /// <summary>
 /// Texts and inline keyboards of the bot, and the compact callback data of its buttons
-/// (Telegram allows at most 64 bytes): "b:{userId}:{minutes}", "l:{userId}", "u:{userId}".
+/// (Telegram allows at most 64 bytes): "b:{userId}:{minutes}", "l:{userId}", "u:{userId}", "t:{userId}:{minutes}".
 /// </summary>
 public static class BotUi
 {
@@ -26,6 +27,7 @@ public static class BotUi
         GrantBonusAction a => $"b:{a.UserId}:{a.Minutes}",
         LockNowAction a => $"l:{a.UserId}",
         UnlockAction a => $"u:{a.UserId}",
+        TakeTimeAction a => $"t:{a.UserId}:{a.Minutes}",
         _ => throw new ArgumentOutOfRangeException(nameof(action))
     };
 
@@ -41,14 +43,16 @@ public static class BotUi
             ("b", 2) when numbers[1] > 0 && numbers[1] <= 240 => new GrantBonusAction(numbers[0], numbers[1]),
             ("l", 1) => new LockNowAction(numbers[0]),
             ("u", 1) => new UnlockAction(numbers[0]),
+            ("t", 2) when numbers[1] > 0 && numbers[1] <= 240 => new TakeTimeAction(numbers[0], numbers[1]),
             _ => null
         };
     }
 
-    /// <summary>+15 / +30 / +60 and Lock now (or Unlock if the parent already locked the user).</summary>
+    /// <summary>+15 / +30 / +60, −15 / −30 / −60 and Lock now (or Unlock if the parent already locked the user).</summary>
     public static IReadOnlyList<IReadOnlyList<InlineButton>> UserKeyboard(int userId, bool parentLocked) =>
     [
         BonusOptions.Select(m => new InlineButton($"+{m} min", Format(new GrantBonusAction(userId, m)))).ToList(),
+        BonusOptions.Select(m => new InlineButton($"−{m} min", Format(new TakeTimeAction(userId, m)))).ToList(),
         [parentLocked
             ? new InlineButton("Unlock", Format(new UnlockAction(userId)))
             : new InlineButton("Lock now", Format(new LockNowAction(userId)))]
@@ -65,7 +69,12 @@ public static class BotUi
 
         var lines = new List<string> { username };
 
-        var bonusText = bonus > 0 ? $" (incl. {FormatMinutes(bonus)} bonus)" : "";
+        var bonusText = bonus switch
+        {
+            > 0 => $" (incl. {FormatMinutes(bonus)} bonus)",
+            < 0 => $" ({FormatMinutes(-bonus)} taken away)",
+            _ => ""
+        };
         var leftText = !inWindow
             ? "outside allowed hours"
             : $"{FormatMinutes(UsageWarnings.GetRemainingMinutes(allowed, used, limit.ScheduleEnd, time))} remaining";

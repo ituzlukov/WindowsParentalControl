@@ -70,7 +70,8 @@ Parental Control is a **Windows desktop application** that lets administrators e
 Check the status and grant time from your phone, also when you are away from home.
 - Create a bot with [@BotFather](https://t.me/BotFather) (`/newbot`), then in the Admin UI open **Telegram**, paste the token and press **Save**
 - Press **Generate pairing code** and send `/start <code>` to your bot within 10 minutes; repeat for each parent. The bot answers only paired chats; five wrong codes invalidate the current one
-- `/status` shows, per restricted user: time used and remaining, today's allowed hours, the session state (active, screen locked, locked out), with buttons **+15 / +30 / +60 min** and **Lock now** / **Unlock**
+- `/status` shows, per restricted user: time used and remaining, today's allowed hours, the session state (active, screen locked, locked out), with buttons **+15 / +30 / +60 min**, **−15 / −30 / −60 min** and **Lock now** / **Unlock**
+- **−N** leaves the child N minutes less than they really have left (never below zero; if less than N is left, time is up right away). The child gets a message either way
 - When a session is locked out because time is up, you get a message with the same buttons; adding time lets the child continue where they left off
 - **Lock now** locks the user out for the rest of the day (logged off after 15 minutes like any lockout); granting bonus time or **Unlock** lifts it
 - The service only makes outgoing HTTPS requests to Telegram (long polling); nothing listens on the computer. The bot token is stored in the database, which restricted users cannot read
@@ -94,6 +95,7 @@ All enforcement actions are logged with timestamps, user SIDs, and details:
 | `WARNING_SENT` | User was warned about an upcoming logoff |
 | `BONUS_GRANTED` | Bonus minutes were granted or cleared for today |
 | `LOCKED_OUT` | Time was up and the session was locked out, the user signed back in and was locked again, or the lockout was lifted |
+| `TIME_TAKEN` | A parent took time away for today (Telegram) |
 ### Clock Tamper Detection
 - Detects when the system clock is set backwards (e.g., a user trying to gain extra screen time)
 - Immediately fills the restricted user's daily usage to their maximum allowed minutes, locking them out for the rest of the day

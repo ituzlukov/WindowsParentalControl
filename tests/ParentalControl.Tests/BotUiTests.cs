@@ -17,7 +17,8 @@ public class BotUiTests
     {
         new GrantBonusAction(3, 30),
         new LockNowAction(3),
-        new UnlockAction(12)
+        new UnlockAction(12),
+        new TakeTimeAction(3, 60)
     };
 
     [Theory]
@@ -41,21 +42,35 @@ public class BotUiTests
     [InlineData("l:abc")]
     [InlineData("l:1:2")]
     [InlineData("r:1:15")]
+    [InlineData("t:1:0")]
+    [InlineData("t:1:999")]
     public void InvalidCallbackData_Rejected(string? data)
     {
         Assert.Null(BotUi.Parse(data));
     }
 
     [Fact]
-    public void Keyboard_HasBonusButtons_AndLockOrUnlock()
+    public void Keyboard_HasAddAndTakeButtons_AndLockOrUnlock()
     {
         var unlocked = BotUi.UserKeyboard(3, parentLocked: false);
         Assert.Equal(["+15 min", "+30 min", "+60 min"], unlocked[0].Select(b => b.Text));
-        Assert.Equal("Lock now", unlocked[1][0].Text);
+        Assert.Equal(["−15 min", "−30 min", "−60 min"], unlocked[1].Select(b => b.Text));
+        Assert.Equal(new TakeTimeAction(3, 30), BotUi.Parse(unlocked[1][1].CallbackData));
+        Assert.Equal("Lock now", unlocked[2][0].Text);
 
         var locked = BotUi.UserKeyboard(3, parentLocked: true);
-        Assert.Equal("Unlock", locked[1][0].Text);
-        Assert.Equal(new UnlockAction(3), BotUi.Parse(locked[1][0].CallbackData));
+        Assert.Equal("Unlock", locked[2][0].Text);
+        Assert.Equal(new UnlockAction(3), BotUi.Parse(locked[2][0].CallbackData));
+    }
+
+    [Fact]
+    public void Status_ShowsTimeTakenAway()
+    {
+        var usage = new UsageRecord { MinutesUsed = 60, BonusMinutes = -30 };
+
+        var text = BotUi.FormatStatus("Roma", Limit, usage, SessionState.Active, null, new DateTime(2026, 11, 23, 15, 0, 0));
+
+        Assert.Contains("Used 1h of 2h 30min (30min taken away), 1h 30min remaining", text);
     }
 
     [Fact]
