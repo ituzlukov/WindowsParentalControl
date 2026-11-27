@@ -5,10 +5,10 @@ using ParentalControl.Core;
 namespace ParentalControl.Notify;
 
 /// <summary>
-/// Shows a message to the child in a window with large text, on top of other windows. The service starts it
-/// in the child's session with the kind of message and the minutes as arguments (see
-/// <see cref="ChildMessages.ToArguments"/>). Started without arguments (e.g. double-clicked), it previews
-/// every message the child can get, one after another.
+/// Shows a message to the child in a window with large text, on top of other windows, in the language of
+/// their Windows. The service starts it in the child's session with the kind of message and the minutes as
+/// arguments (see <see cref="ChildMessages.ToArguments"/>). Started without arguments (e.g. double-clicked),
+/// it previews every message the child can get, one after another; with "en", "ru" or "pl", in that language.
 /// </summary>
 public static class Program
 {
@@ -18,9 +18,16 @@ public static class Program
     [STAThread]
     public static int Main(string[] args)
     {
+        var language = ChildMessages.CurrentLanguage();
         IReadOnlyList<ChildMessage> messages;
         if (args.Length == 0)
         {
+            messages = ChildMessages.AllSamples(LogoffAfter);
+        }
+        else if (args.Length == 1 && ChildMessages.Languages.Contains(args[0]))
+        {
+            // Preview in another language: "ParentalControl.Notify.exe pl"
+            language = args[0];
             messages = ChildMessages.AllSamples(LogoffAfter);
         }
         else if (ChildMessages.TryParseArguments(args, out var message))
@@ -36,7 +43,7 @@ public static class Program
         var app = new Application { ShutdownMode = ShutdownMode.OnExplicitShutdown };
         foreach (var message in messages)
         {
-            var (title, text) = ChildMessages.Text(message);
+            var (title, text) = ChildMessages.Text(message, language);
             new MessageWindow(title, text).ShowDialog();
         }
         app.Shutdown();

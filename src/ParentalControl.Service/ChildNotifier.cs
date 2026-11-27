@@ -5,8 +5,9 @@ using ParentalControl.Core.Platform;
 namespace ParentalControl.Service;
 
 /// <summary>
-/// Shows a message to the child: in ParentalControl.Notify (large text, on top of other windows), started
-/// in their session as them; if that fails, in a system message box (WTSSendMessage). Never waits.
+/// Shows a message to the child: in ParentalControl.Notify (large text, on top of other windows, in the
+/// language of the child's Windows), started in their session as them; if that fails, in a system message
+/// box (WTSSendMessage) in English. Never waits.
 /// </summary>
 public static class ChildNotifier
 {
@@ -24,7 +25,7 @@ public static class ChildNotifier
                 sessionId, error);
         }
 
-        var text = ChildMessages.Text(message);
+        var text = ChildMessages.Text(message, "en");
         if (SessionManager.SendMessage(sessionId, text.Title, text.Message)) return true;
         logger.Warning("Failed to show a message in session {SessionId}, Win32 error {Error}",
             sessionId, Marshal.GetLastPInvokeError());

@@ -24,30 +24,85 @@ public sealed record ChildMessage(ChildMessageKind Kind, int Minutes)
 }
 
 /// <summary>
-/// Texts of the messages to the child. The service passes only the kind and the minutes to
-/// ParentalControl.Notify, which shows the text. Self-contained (no other project types), so
-/// ParentalControl.Notify compiles this file in directly.
+/// Texts of the messages to the child in English, Russian and Polish. The service passes only the kind and
+/// the minutes to ParentalControl.Notify, which runs as the child and picks the language of their Windows.
+/// Self-contained (no other project types), so ParentalControl.Notify compiles this file in directly.
 /// </summary>
 public static class ChildMessages
 {
-    public static (string Title, string Message) Text(ChildMessage m)
+    public static readonly string[] Languages = ["en", "ru", "pl"];
+
+    /// <summary>The title and the text in the given language ("ru", "pl"; anything else is English).</summary>
+    public static (string Title, string Message) Text(ChildMessage m, string language)
     {
         var n = m.Minutes;
-        return ("Parental Control", m.Kind switch
+        return language switch
         {
-            ChildMessageKind.TimeEndsSoon =>
-                $"Your computer time ends\nin {n} {En(n)}.\n\n" +
-                "Save your work:\nthe session will be locked.",
-            ChildMessageKind.TimeIsOver =>
-                "Your computer time is over.\n\n" +
-                "The session will be locked again.\nYour programs stay open until a parent adds time; " +
-                $"after {n} {En(n)} you will be logged off.",
-            ChildMessageKind.TimeAdded => $"A parent added {n} {En(n)}.",
-            _ => $"A parent took away {n} {En(n)}."
-        });
+            "ru" => ("Родительский контроль", m.Kind switch
+            {
+                ChildMessageKind.TimeEndsSoon =>
+                    $"Время за компьютером закончится\nчерез {n} {Ru(n)}.\n\n" +
+                    "Сохрани свою работу:\nсеанс будет заблокирован.",
+                ChildMessageKind.TimeIsOver =>
+                    "Время за компьютером закончилось.\n\n" +
+                    "Сеанс снова будет заблокирован.\nПрограммы останутся открытыми, пока родители не добавят время; " +
+                    $"через {n} {Ru(n)} будет выполнен выход из системы.",
+                ChildMessageKind.TimeAdded => $"Родители добавили {n} {Ru(n)}.",
+                _ => $"Родители забрали {n} {Ru(n)}."
+            }),
+            "pl" => ("Kontrola rodzicielska", m.Kind switch
+            {
+                ChildMessageKind.TimeEndsSoon =>
+                    $"Twój czas przy komputerze skończy się\nza {n} {Pl(n)}.\n\n" +
+                    "Zapisz swoją pracę:\nsesja zostanie zablokowana.",
+                ChildMessageKind.TimeIsOver =>
+                    "Twój czas przy komputerze się skończył.\n\n" +
+                    "Sesja zostanie ponownie zablokowana.\nProgramy pozostaną otwarte, dopóki rodzic nie doda czasu; " +
+                    $"za {n} {Pl(n)} nastąpi wylogowanie.",
+                ChildMessageKind.TimeAdded => $"Rodzic dodał {n} {Pl(n)}.",
+                _ => $"Rodzic zabrał {n} {Pl(n)}."
+            }),
+            _ => ("Parental Control", m.Kind switch
+            {
+                ChildMessageKind.TimeEndsSoon =>
+                    $"Your computer time ends\nin {n} {En(n)}.\n\n" +
+                    "Save your work:\nthe session will be locked.",
+                ChildMessageKind.TimeIsOver =>
+                    "Your computer time is over.\n\n" +
+                    "The session will be locked again.\nYour programs stay open until a parent adds time; " +
+                    $"after {n} {En(n)} you will be logged off.",
+                ChildMessageKind.TimeAdded => $"A parent added {n} {En(n)}.",
+                _ => $"A parent took away {n} {En(n)}."
+            })
+        };
+    }
+
+    /// <summary>The language of the current user's Windows: "ru", "pl" or "en".</summary>
+    public static string CurrentLanguage()
+    {
+        var language = CultureInfo.CurrentUICulture.TwoLetterISOLanguageName;
+        return Languages.Contains(language) ? language : "en";
     }
 
     private static string En(int n) => n == 1 ? "minute" : "minutes";
+
+    // "через 1 минуту / 2 минуты / 5 минут / 21 минуту"
+    private static string Ru(int n)
+    {
+        int mod10 = n % 10, mod100 = n % 100;
+        if (mod10 == 1 && mod100 != 11) return "минуту";
+        if (mod10 is >= 2 and <= 4 && mod100 is not (>= 12 and <= 14)) return "минуты";
+        return "минут";
+    }
+
+    // "za 1 minutę / 2 minuty / 5 minut / 22 minuty"
+    private static string Pl(int n)
+    {
+        if (n == 1) return "minutę";
+        int mod10 = n % 10, mod100 = n % 100;
+        if (mod10 is >= 2 and <= 4 && mod100 is not (>= 12 and <= 14)) return "minuty";
+        return "minut";
+    }
 
     /// <summary>Command-line arguments for ParentalControl.Notify: the kind and the minutes, e.g. "TimeEndsSoon 10".</summary>
     public static string ToArguments(ChildMessage m) =>

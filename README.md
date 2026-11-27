@@ -56,6 +56,7 @@ Parental Control is a **Windows desktop application** that lets administrators e
 ### Logoff Warnings
 - A restricted user gets a message 10 minutes and 1 minute before the session is locked, whichever comes first: the daily limit or the end of the schedule window
 - Messages to the child are shown in a window with large text, on top of other windows, in the system light or dark theme (`ParentalControl.Notify.exe`, started by the service in the child's session). If it cannot be started, a standard system message box is shown instead. A newer message replaces an older one still open
+- The messages are in the language of the child's Windows: English, Russian or Polish (other languages get English; the fallback system message box is always English)
 - Each warning is shown once per session; if extra time is granted, the warnings are shown again when the new deadline approaches
 - No warnings in a locked or disconnected session; a pending warning is shown after the session resumes
 - The message never blocks the service
@@ -289,7 +290,7 @@ To see every message the child can get (the 10- and 1-minute warnings, the notic
 .\publish\notify\ParentalControl.Notify.exe
 ```
 
-The messages are shown one after another in the same window the child gets; close each one to see the next. Nothing is locked, the database is not touched, and an installed service keeps running.
+The messages are shown one after another in the same window the child gets; close each one to see the next. Nothing is locked, the database is not touched, and an installed service keeps running. The preview is in your Windows language; to see another one, pass it: `ParentalControl.Notify.exe ru`, `pl` or `en`.
 
 ### Building the Installer
 
